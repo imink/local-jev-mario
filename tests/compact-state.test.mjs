@@ -186,7 +186,10 @@ test('collision forecasts retain their meaning across the held-action horizon', 
     ],
   });
   assert.equal(request.state.game.frames, 16);
-  assert.match(request.state.goal, /crossing zero is not safety/);
+  assert.match(
+    request.questions.move.instructions,
+    /crossing zero is not safety/,
+  );
   assert.match(request.questions.move.instructions, /survival over progress/);
 });
 
@@ -253,7 +256,7 @@ test('excerpts retain the actual episode-ending action even when it is far away'
   assert.equal(excerpt.outcome, 'dead');
 });
 
-test('each option includes its own factual forecast without filtering dangerous choices', () => {
+test('native outcome table preserves forecast facts without filtering or selecting actions', () => {
   const full = state();
   full.forecast = {
     frames: 16,
@@ -290,14 +293,26 @@ test('each option includes its own factual forecast without filtering dangerous 
     Object.keys(request.questions.move.criteria),
     Object.keys(ACTIONS),
   );
-  assert.match(
-    request.questions.move.criteria.right_run,
-    /12 pixels forward, y=192, dead/,
-  );
-  assert.match(
-    request.questions.move.criteria.right_run_jump,
-    /7 pixels forward, y=137, rising/,
-  );
+  assert.deepEqual(Object.keys(request.state.outcomes), Object.keys(ACTIONS));
+  assert.deepEqual(request.state.outcomes.right_run, {
+    aliveNext: false,
+    aliveHeld: false,
+    trap: false,
+    forwardNext: 12,
+    forwardHeld: 12,
+    jumpReadyNext: false,
+  });
+  assert.deepEqual(request.state.outcomes.right_run_jump, {
+    aliveNext: true,
+    aliveHeld: true,
+    trap: false,
+    forwardNext: 7,
+    forwardHeld: 65,
+    jumpReadyNext: false,
+  });
   assert.equal(request.state.game.forecast, undefined);
-  assert.match(request.questions.move.criteria.right_jump, /TRAP/);
+  assert.equal(request.state.outcomes.right_jump.trap, true);
+  assert.match(request.questions.move.instructions, /greatest forwardNext/);
+  assert.equal(request.questions.move.criteria.right_run, 'right_run');
+  assert.equal(full.forecast.moves.right_run.next[2], 'dead');
 });

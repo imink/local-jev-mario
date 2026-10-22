@@ -3,12 +3,12 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Local Jev Mario</title>
+    <title>Local This-That Mario</title>
     <link rel="stylesheet" href="/style.css">
     <script type="module" src="/app.mjs"></script>
   </head>
   <body>
-    <header><h1>Local Jev Mario</h1><p>NES → RAM / JSON → 本地 Jev → Gemma → 手柄 · 不向模型发送截图</p></header>
+    <header><h1>Local This-That Mario</h1><p>NES → RAM / JSON → 本地 this-that-model-1.2 → 手柄 · 不向模型发送截图 · 不生成文本</p></header>
     <main>
       <section aria-label="游戏">
         <canvas id="screen" width="256" height="240" aria-label="NES 游戏画面">浏览器需要支持 Canvas。</canvas>
@@ -27,7 +27,7 @@
       </section>
       <section aria-label="模型与遥测">
         <h2>模型与遥测</h2>
-        <p id="health">正在检查本地 Jev…</p>
+        <p id="health">正在检查本地 This-That…</p>
         <button id="check" type="button">检查服务</button>
         <dl>
           <dt>已执行决策</dt><dd id="count">0</dd>
@@ -35,12 +35,15 @@
           <dt>推理延迟</dt><dd id="latency">未提供</dd>
           <dt>模型输入</dt><dd id="input-size">未提供</dd>
           <dt>向前跳有用度 (Noul)</dt><dd id="jump">未提供</dd>
-          <dt>动作概率 / 置信度 / Score</dt><dd>未提供（本地兼容协议不含这些字段）</dd>
+          <dt>所选动作概率</dt><dd id="confidence">未提供</dd>
+          <dt>七个动作的模型分布</dt><dd><pre id="probabilities">未提供</pre></dd>
+          <dt>危险度 Score</dt><dd>未请求</dd>
           <dt>进度</dt><dd id="progress">未加载</dd>
           <dt>跨局记忆</dt><dd id="learning">尚无经验</dd>
           <dt>决策日志</dt><dd id="log">未开始</dd>
         </dl>
         <p>默认关闭跨局经验，每局独立推理。模型可查看当前状态的动作物理预测；预测副本不控制真实游戏。USE_EXPERIENCE=1 可显式开启本地跨局记忆（不是权重训练）。</p>
+        <p>概率来自 This-That 的原生分类头，不是通关成功率，也未在本游戏上校准。模型直接选择动作；没有 Gemma 回退或脚本代选。</p>
         <details open><summary>完整遥测（模型接收精简版）</summary><pre id="telemetry">尚未加载 ROM</pre></details>
         <details><summary>最近实际发送的精简状态与问题</summary><pre id="model-input">尚未请求</pre></details>
       </section>

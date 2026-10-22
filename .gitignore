@@ -3,3 +3,8 @@ midscene_run/
 *.nes
 *.rom
 .env
+.venv/
+.cache/
+models/
+__pycache__/
+*.pyc

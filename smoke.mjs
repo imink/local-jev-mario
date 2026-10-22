@@ -8,7 +8,7 @@ if (!process.env.MARIO_ROM)
   throw new Error(
     'Set MARIO_ROM to your lawfully obtained local SMB1 .nes file. No ROM is bundled.',
   );
-const baseURL = process.env.JEV_BASE_URL ?? 'http://127.0.0.1:8766';
+const baseURL = process.env.THIS_THAT_BASE_URL ?? 'http://127.0.0.1:8767';
 const health = await checkJev(baseURL);
 const count = integer(
   process.env.SMOKE_DECISIONS ?? 3,

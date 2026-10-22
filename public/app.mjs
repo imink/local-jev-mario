@@ -3,7 +3,7 @@ const context = element('screen').getContext('2d');
 const labels = {
   missing_rom: '缺少 ROM：请加载自己合法持有的原版 SMB1 .nes 文件。',
   paused: '已暂停',
-  thinking: 'Gemma 推理中（模拟器暂停）',
+  thinking: 'This-That 决策中（模拟器暂停）',
   dead: '角色死亡；请手动重新开始',
   clear: '到达终点；请手动重新开始',
   limit: '已达决策上限；请手动重新开始',
@@ -39,6 +39,19 @@ function show(state) {
     : '尚未请求';
   element('jump').textContent =
     state.decision?.jumpNeeded?.toFixed(3) ?? '未提供';
+  element('confidence').textContent =
+    state.decision?.confidence === null ||
+    state.decision?.confidence === undefined
+      ? '未提供'
+      : `${(state.decision.confidence * 100).toFixed(1)}%`;
+  element('probabilities').textContent = state.decision?.probabilities
+    ? Object.entries(state.decision.probabilities)
+        .map(
+          ([action, probability]) =>
+            `${action}: ${(probability * 100).toFixed(1)}%`,
+        )
+        .join('\n')
+    : '未提供';
   element('log').textContent = state.logFile ?? '未开始';
   element('learning').textContent = state.learning
     ? `${state.learning.episodes} 局 · ${state.learning.deaths} 次死亡 · 记忆内最远 x=${state.learning.bestX ?? '无'} · 可用相关记录 ${state.learning.nearbyEpisodes.length} 条`
@@ -101,7 +114,8 @@ async function health() {
   element('health').textContent = '正在检查…';
   try {
     const data = await api('/api/health');
-    element('health').textContent = `就绪 · ${data.engine} · ${data.model}`;
+    element('health').textContent =
+      `就绪 · ${data.engine} · ${data.model} · ${data.device}`;
   } catch (error) {
     element('health').textContent = `服务未就绪：${error.message}`;
   }

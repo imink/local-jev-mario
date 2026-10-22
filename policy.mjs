@@ -12,58 +12,41 @@ export const ACTIONS = Object.freeze({
 });
 
 export function decisionRequest(state) {
-  const criteria = {
-    noop: 'Release buttons.',
-    right: 'Walk right.',
-    right_jump: 'Right + A (jump).',
-    right_run: 'Right + B (run).',
-    right_run_jump: 'Right + B + A (run and jump).',
-    jump: 'A (jump).',
-    left: 'Left (brake/reverse).',
-  };
+  const criteria = Object.fromEntries(
+    Object.keys(ACTIONS).map((action) => [action, action]),
+  );
+  const modelState = { game: compactState(state) };
   if (state.forecast) {
-    for (const action of Object.keys(criteria)) {
+    modelState.outcomes = {};
+    for (const action of Object.keys(ACTIONS)) {
       const { next, held, jumpReadyNext, noSurvivingFollowup } =
         state.forecast.moves[action];
       if (typeof jumpReadyNext !== 'boolean')
         throw new Error(`Missing jump readiness forecast for ${action}.`);
-      const outcome =
-        next[2] === 'dead'
-          ? 'DEAD within Next.'
-          : noSurvivingFollowup
-            ? 'TRAP: every follow-up dies.'
-            : held[2] === 'dead'
-              ? 'DIES if held; a later change is necessary.'
-              : 'ALIVE through Next and Held.';
-      criteria[action] = `${outcome} ${criteria[action]}`;
-      criteria[action] +=
-        ` Next: ${next[0]} pixels forward, y=${next[1]}, ${next[2]}. Held: ${held[0]} pixels forward, y=${held[1]}, ${held[2]}.`;
-      criteria[action] +=
-        ` Can start a fresh jump after Next: ${jumpReadyNext ? 'yes' : 'no'}.`;
-      if (state.player.grounded && state.recent_control.heldJump)
-        criteria[action] += action.includes('jump')
-          ? ' A was already held: this does NOT start a new jump and keeps A unarmed.'
-          : ' Releases held A so a subsequent grounded jump can start.';
-      if (state.forecast.moves[action].noSurvivingFollowup)
-        criteria[action] +=
-          ' TRAP: after Next, all seven possible follow-up actions die within another decision interval.';
+      modelState.outcomes[action] = {
+        aliveNext: next[2] !== 'dead',
+        aliveHeld: held[2] !== 'dead',
+        trap: Boolean(noSurvivingFollowup),
+        forwardNext: next[0],
+        forwardHeld: held[0],
+        jumpReadyNext,
+      };
     }
   }
   return {
-    state: {
-      goal: 'SMB1: survive and advance right. Pixels, +y down, velocities in pixels/frame; solids=[left,top,right,bottom], gaps=[left,right]. Unknown outside observedX. Simulation pauses for inference; hold chosen action for frames. Enemy projectedDx is enemy-player dx after frames: crossing zero is not safety. contactInFrames estimates time to contact. Memory is factual excerpts: count=consecutive decisions; outcome describes the whole episode, not each step. Learn from failures without blindly replaying them.',
-      game: compactState(state),
-    },
+    state: modelState,
     questions: {
       move: {
         type: 'choice',
-        instructions: `Prioritize survival over progress. Compare EVERY option: Next is after ${state.reaction_timing.framesPerDecision} frames, Held after ${state.forecast?.heldFor ?? state.reaction_timing.framesPerDecision} frames without replanning. These are isolated simulations, not live actions. Avoid Next deaths AND TRAP actions, even if they advance farther. Prefer surviving both Next and Held, then larger safe forward displacement. A rising jump is useful progress; grounded is not inherently safer. Never repeat zero movement when another option survives and advances. If equally useful, prefer running on clear ground. When grounded with heldA, release A to rearm a new jump. No action is preselected or overridden.`,
+        instructions: state.forecast
+          ? 'Choose an action using the forecast facts. First prefer aliveNext=true and trap=false. Among those, prefer aliveHeld=true. Then choose the greatest forwardNext; break ties by greatest forwardHeld, then jumpReadyNext=true. Zero forward progress loses to positive progress when survival is equal. Return the action name, not a description.'
+          : 'Choose an action to move Mario right while avoiding enemies and gaps; prioritize survival over progress. This synthetic protocol probe has no simulated action forecasts. Coordinates are pixels, with positive y downward. Enemy projectedDx is after the action interval: crossing zero is not safety.',
         criteria,
       },
       jump_needed: {
         type: 'noul',
         instructions:
-          'Belief [0,1] that starting/holding a forward jump helps now. Display only.',
+          'Does starting or holding a forward jump help Mario survive and advance now?',
       },
     },
   };
@@ -72,7 +55,9 @@ export function decisionRequest(state) {
 export function parseDecision(result) {
   const answers = result?.answers;
   if (!answers || Object.keys(answers).sort().join(',') !== 'jump_needed,move')
-    throw new Error('Jev must return exactly move and jump_needed answers.');
+    throw new Error(
+      'Decision service must return exactly move and jump_needed answers.',
+    );
   const move = answers.move;
   const jump = answers.jump_needed;
   if (
@@ -80,20 +65,45 @@ export function parseDecision(result) {
     typeof move.choice !== 'string' ||
     !Object.hasOwn(ACTIONS, move.choice)
   )
-    throw new Error('Jev returned an invalid controller choice.');
+    throw new Error('Decision service returned an invalid controller choice.');
   if (
     jump?.type !== 'noul' ||
     !Number.isFinite(jump.noul) ||
     jump.noul < 0 ||
     jump.noul > 1
   )
-    throw new Error('Jev returned an invalid jump belief.');
+    throw new Error('Decision service returned an invalid jump belief.');
+  const probabilities = move.probabilities ?? null;
+  if (probabilities !== null) {
+    if (
+      typeof probabilities !== 'object' ||
+      Array.isArray(probabilities) ||
+      Object.keys(probabilities).sort().join(',') !==
+        Object.keys(ACTIONS).sort().join(',') ||
+      Object.values(probabilities).some(
+        (p) => !Number.isFinite(p) || p < 0 || p > 1,
+      ) ||
+      Math.abs(
+        Object.values(probabilities).reduce((sum, p) => sum + p, 0) - 1,
+      ) > 1e-5 ||
+      probabilities[move.choice] < Math.max(...Object.values(probabilities)) ||
+      (move.confidence !== undefined &&
+        (!Number.isFinite(move.confidence) ||
+          Math.abs(move.confidence - probabilities[move.choice]) > 1e-5))
+    )
+      throw new Error(
+        'Decision service returned an invalid action probability distribution.',
+      );
+  } else if (move.confidence !== undefined) {
+    throw new Error(
+      'Decision service returned confidence without an action distribution.',
+    );
+  }
   return {
     action: move.choice,
     jumpNeeded: jump.noul,
-    // The local compatible protocol does not return these official SDK fields.
-    confidence: null,
-    probabilities: null,
+    confidence: probabilities?.[move.choice] ?? null,
+    probabilities,
     dangerScore: null,
   };
 }
@@ -107,15 +117,27 @@ export async function choose(state, { baseURL, runId, signal }) {
     body: JSON.stringify(request),
     signal,
   });
+  if (
+    raw.engine !== 'this-that' ||
+    raw.model !== 'flock-io/this-that-model-1.2'
+  )
+    throw new Error(
+      'Expected local this-that-model-1.2; refusing a different decision backend.',
+    );
+  const decision = parseDecision(raw);
+  if (!decision.probabilities)
+    throw new Error(
+      'This-that must return its actual action probability distribution.',
+    );
   return {
-    ...parseDecision(raw),
+    ...decision,
     latencyMs: performance.now() - started,
     raw,
-    modelInput: request.state.game,
+    modelInput: request.state,
     modelQuestions: request.questions,
     inputStats: {
       fullStateChars: JSON.stringify(state).length,
-      sentStateChars: JSON.stringify(request.state.game).length,
+      sentStateChars: JSON.stringify(request.state).length,
       inputTokens: raw.usage?.input_tokens ?? null,
     },
   };
@@ -126,6 +148,13 @@ export async function checkJev(baseURL) {
     signal: AbortSignal.timeout(5000),
   });
   if (health.ready !== true)
-    throw new Error('Jev reports that its model is not ready.');
+    throw new Error('Decision service reports that its model is not ready.');
+  if (
+    health.engine !== 'this-that' ||
+    health.model !== 'flock-io/this-that-model-1.2'
+  )
+    throw new Error(
+      'Expected local this-that-model-1.2; this service is a different backend.',
+    );
   return health;
 }

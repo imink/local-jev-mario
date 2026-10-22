@@ -352,7 +352,7 @@ test('HTTP dashboard, legal local upload path, frame and CSRF protection', async
   const url = `http://127.0.0.1:${server.address().port}`;
   const page = await fetch(url);
   assert.equal(page.status, 200);
-  assert.match(await page.text(), /Local Jev Mario/);
+  assert.match(await page.text(), /Local This-That Mario/);
   assert.match(
     page.headers.get('content-security-policy'),
     /default-src 'self'/,

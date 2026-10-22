@@ -9,7 +9,7 @@ import { Telemetry } from './telemetry.mjs';
 
 export class Game {
   constructor({
-    baseURL = 'http://127.0.0.1:8766',
+    baseURL = 'http://127.0.0.1:8767',
     framesPerDecision = 16,
     maxDecisions = 3000,
     logDirectory,

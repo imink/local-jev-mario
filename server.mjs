@@ -72,7 +72,7 @@ if (
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
   const game = new Game({
-    baseURL: process.env.JEV_BASE_URL ?? 'http://127.0.0.1:8766',
+    baseURL: process.env.THIS_THAT_BASE_URL ?? 'http://127.0.0.1:8767',
     framesPerDecision: process.env.FRAMES_PER_DECISION ?? 16,
     maxDecisions: process.env.MAX_DECISIONS ?? 3000,
     experienceEnabled:
@@ -91,10 +91,10 @@ if (
       });
     }
   }
-  const port = integer(process.env.GAME_PORT ?? 4174, 'GAME_PORT', 1, 65535);
+  const port = integer(process.env.GAME_PORT ?? 4175, 'GAME_PORT', 1, 65535);
   const server = createGameServer(game);
   await listen(server, port);
-  console.log(`Local Jev Mario: http://127.0.0.1:${port}`);
+  console.log(`Local This-That Mario: http://127.0.0.1:${port}`);
   console.log(
     game.emulator
       ? 'ROM loaded; agent paused.'

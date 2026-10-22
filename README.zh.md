@@ -1,202 +1,179 @@
-# 本地 Jev Mario
+# 本地 This-That Mario
 
 [English](./README.md)
 
-真实 NES 模拟器 → SMB1 RAM → 对象化 JSON → 本地 Jev 兼容接口 → Gemma → 手柄。
-不使用 Midscene 视觉能力，不给模型截图，不需要云端 API Key，也不包含任何 Nintendo ROM、图片或音乐。
+真实 NES 模拟器 → SMB1 RAM / 结构化状态 → 本地
+[`flock-io/this-that-model-1.2`](https://huggingface.co/flock-io/this-that-model-1.2)
+→ 手柄。模型一次前向计算为七个动作打分，不生成文本。
+不发送截图、不调用云端推理、不需要 API Key、不由脚本代选动作，也不包含 Nintendo 素材。
 
-此独立仓库从 `imink/midscene` 的 `examples/local-jev-mario` 提取。
-`gemma-baseline` 分支保存已运行成功的 Gemma/Jev 实现；其他模型在独立分支接入。
+## 两个分支
 
-## 启动
+独立仓库从 `imink/midscene` 的 `examples/local-jev-mario` 提取：
 
-需要 Node.js 24+、pnpm 9.3.0+ 和自己合法取得的原版 Super Mario Bros `.nes` 文件。
-本示例使用独立的 pnpm workspace，不需要构建 Midscene。
+- `gemma-baseline`：保存之前可运行的 Gemma + Jev 兼容适配器。
+- `this-that-local`：本文档对应的原生本地决策模型。
+
+切换分支前，先停止**从本仓库启动**的服务。原工作区和其 4174/8766/8765
+服务独立保留，不需要停止。不会自动推送远端。
+
+## 安装
+
+需要 Node.js 24+、pnpm 9.3.0+、Python 3.12、uv，以及自己合法持有的
+Super Mario Bros `.nes` 文件。Apple Silicon 使用 MLX float16，
+模型权重约 3.76 GB，不进行量化。
 
 ```bash
 cd ~/code/local-jev-mario
+git switch this-that-local
 pnpm install --frozen-lockfile
-pnpm start
+uv sync --frozen --python 3.12
+pnpm download:model
 ```
 
-打开 **http://127.0.0.1:4174**，选择本地 `.nes` 文件，点击「加载 ROM」，然后「单步决策」或「启动 Agent」。
-ZIP 请先在本地解压，页面加载的是 `.nes`，不是 ZIP。ROM 仅在服务进程内存中加载；
-不会保存上传文件、传给模型或从 API 返回。也可以启动时加载：
+依赖位于 `node_modules/` 和独立 `.venv/`；模型位于被 Git 忽略的
+`models/this-that-model-1.2/`。只有安装阶段下载公开依赖和权重；
+游戏期间只加载本地文件，并强制 Hugging Face / Transformers 离线。
+不修改已有 Gemma 的 Python 环境。
+
+若 `pnpm` 被 depot_tools 覆盖，可使用 `corepack pnpm` 或官方独立可执行文件。
+Python 锁文件固定实际验证的依赖，MLX 版本采用本机已知兼容版本，
+不会直接升级到尚未验证的新版本。
+
+## 启动
+
+终端一，在仓库目录启动模型：
 
 ```bash
-MARIO_ROM="/absolute/path/to/Super Mario Bros.nes" pnpm start
+pnpm model
 ```
 
-本次用户提供的欧洲版附件已解压到本工作区被 Git 忽略的
-`midscene_run/roms/user-supplied.nes`（此文件**不属于源码分发**）。在这个工作区可以运行：
+看到 `Ready` 后，终端二：
+
+```bash
+curl http://127.0.0.1:8767/health
+MARIO_ROM="/自己合法持有的游戏绝对路径/game.nes" pnpm start
+```
+
+打开 **http://127.0.0.1:4175**，点击「启动 Agent」。
+也可以省略 `MARIO_ROM`，在页面选择并加载 `.nes`。ZIP 请先在本地解压。
+页面上传的 ROM 仅在内存加载，不保存、不由 API 返回，也不传给模型。
+
+仅在本开发机器上，用户提供的 ROM 已私下保存在被忽略的
+`midscene_run/roms/user-supplied.nes`，可直接使用：
 
 ```bash
 MARIO_ROM=midscene_run/roms/user-supplied.nes pnpm start
 ```
 
-端口 4174 避开已有的 4173；遇到端口占用会报错，不会停止其他进程。
-若 PATH 中 `pnpm` 被 depot_tools 覆盖，可使用 `corepack pnpm`。
-如果 Corepack 的下载也受本机网络配置影响，应使用 pnpm 官方发行的 9.3.0+ 可执行文件，而不是修改共享 Python 或模型环境。
+ROM 和模型权重都不进入 Git。缺少 ROM/权重、端口被占用、模型不可用或回答无效
+都会明确报错。**没有 Gemma 回退**：保留的 `local-jev.mjs` 是旧适配器，
+本分支的游戏会拒绝把其回答当成 This-That 决策。
 
-## 本地模型服务
+## 动作和概率的含义
 
-默认复用 `http://127.0.0.1:8766/v1/systemone`，先检查：
+`local_this_that.py` 调用上游原版 `TypedDecider` 和 System One 协议解析器，
+只是 HTTP 桥接层，不是另造一个模型。七个选项及其说明按原顺序传入；
+动作 Choice 和跳跃用途的二选一问题通过**一次前向计算**同时回答。
 
-```bash
-curl http://127.0.0.1:8766/health
-pnpm probe
-```
+模型返回的原生索引直接对应 `noop`、`right`、`right_jump`、`right_run`、
+`right_run_jump`、`jump`、`left`。代码不会筛除、预选或替换任何动作。
+页面展示经过校验的完整模型概率分布。此模型的 `confidence` 是
+**所选动作的概率**，不是官方 Jev 的置信度定义，也不是马里奥通关率；
+尚未在本游戏上做概率校准。Noul 是 `yes` 标签的概率，仅显示，不控制游戏。
+没有请求危险度 Score。
 
-`probe` 发送**合成 RAM 状态**验证真实 Jev/Gemma 的协议，不能证明真实游戏效果。
-要验证用户 ROM → RAM → 真实模型 → NES 动作：
+使用原生分类 API 默认的温度 1.0，不是 Gemma 的文本采样温度。
+生成 token 数确实为零；输入 token 数来自实际原生提示词构造器。
+状态或提示词超过限制会明确报错，不悄悄截断。
 
-```bash
-MARIO_ROM="/absolute/path/to/game.nes" pnpm smoke
-# 可选：SMOKE_DECISIONS=20；默认只执行 3 次，绝不保证通关。
-```
+每次决策前，隔离的模拟器副本为七个动作分别预测：下一决策间隔、
+持续持有该动作 60 帧的结果，以及下一次能否重新起跳。
+若当前间隔存活但持续持有会死亡，还会检查下一间隔的全部七种后续动作；
+这些后续动作全部死亡时标为 `TRAP`。这是当前状态的物理事实，不是搜索程序替模型选动作。
+没有 `TRAP` 标记不代表更远未来安全；预测副本不推进或回退真实游戏。
+本分支把这些事实放进结构化 `outcomes` 表，与精简游戏状态一起发送。
+生存/前进优先级由模型执行，应用不计算最终获选动作。
+最初的长句输入试跑曾卡在 x434；对同一状态改用结构化表后，
+模型能够选出越过水管所需的跳跃。
 
-只有现有 Jev **没有运行**时才需启动本示例自带的兼容适配器：
+## 游戏行为
 
-```bash
-GEMMA_BASE_URL=http://127.0.0.1:8765/v1 pnpm jev
-```
+- 通过正常 START 流程从 1-1 开始，不修改 RAM，不注入存档。
+- 支持原版 mapper-0 iNES SMB1：32 KiB PRG、8 KiB CHR、无 trainer，
+  共 40976 字节。遥测采用 World 布局，用户的 Europe Rev A 已运行过；
+  仅凭文件头不能识别其他游戏或改版。
+- **JSNES 使用 NTSC 时钟，欧洲版是兼容运行，不是精确的 50 Hz PAL 模拟。**
+  页面显示本地 NES framebuffer，无声音。
+- 默认每 16 个模拟帧决策一次，不是每秒推理 16 次。推理期间游戏暂停。
+  落地后继续按住 A 不能重新起跳，必须由模型选择不含 A 的动作松键。
+- 死亡、旗杆/终点或达到决策上限后停止，不自动重开。暂停会取消请求并丢弃迟到回答。
+- **默认关闭跨局经验**：不读取、不保存之前的局数。只有 `USE_EXPERIENCE=1`
+  才显式启用有界事实记忆，不是权重训练；否则已有历史不变。
 
-适配器会从 `/models` 读取唯一已加载的模型 ID；多模型时需设置准确的 `GEMMA_MODEL`。
-请求参数固定为 `temperature: 0`、`enable_thinking: false`、`stream: false`、`max_tokens: 768`，
-使用 JSON schema 并校验返回类型。`JEV_PORT` 可换成未占用端口；游戏端相应设置 `JEV_BASE_URL`。
-不要为本示例重复加载已经运行的 Gemma。若确实尚未运行，可在已有的、安装了 MLX-VLM 的环境中启动：
-
-```bash
-HF_HUB_OFFLINE=1 /path/to/venv/bin/python -m mlx_vlm.server \
-  --model /absolute/path/to/local-model --host 127.0.0.1 --port 8765 --max-tokens 768
-```
-
-这里的 Jev 是**类型化协议适配层**，并非另一个模型，也不是官方 TypeSafe/Jev SDK。
-真正推理的是 Gemma。兼容协议只返回 Choice 和 Noul：动作概率、置信度和 Score 显示「未提供」，
-不伪造数值，不把 Noul 当成校准后的成功概率。
-
-## 游戏行为与兼容范围
-
-- 以 world 1-1 开局。加载/重新开始只执行启动画面所需的 START，不修改 RAM 或注入存档。
-- 支持 mapper 0、32 KiB PRG、8 KiB CHR、无 trainer 的 iNES 1.0（40976 字节）。
-  遥测针对原版 SMB1 布局；World 版为目标布局，用户提供的 Europe Rev A 已进行真实模型控制验证。
-  **JSNES 使用 NTSC 时钟，欧洲版属于兼容运行，不是精确的 50 Hz PAL 模拟。**
-  文件头不能可靠识别游戏/区域；其他游戏、改版和组合卡即使头部相同，也不在支持范围。
-- 7 个动作：`noop`、`right`、`right_jump`、`right_run`、`right_run_jump`、`jump`、`left`。
-  每个动作持有 `FRAMES_PER_DECISION` 帧，默认 16，范围 1–60。这是模拟帧间隔，不是每秒推理次数。
-  推理期间模拟器完全暂停，响应延迟不增加游戏内反应帧。
-- Choice 直接控制动作。没有硬编码救场、自动跳跃或自动松开 A 的模拟帧；
-  连续两次跳跃需要模型先选择不含 A 的动作。Noul 只用于显示。
-- RAM 状态包括玩家、轨迹、可见敌人及投影、合并后的地形矩形/可能缺口、
-  最近地面预览、反应时序、上一动作和局内进度。不发送原始 tile grid。
-  坐标单位为像素，Y 向下；小 Mario 的上边界按 32 像素 RAM 锚点修正。
-  地形只信任可见区域；非零碰撞块视为潜在实体，敌人匀速投影不是保证。
-  `imminentCollision` 是由相对速度、16 像素水平碰撞宽度及「下一动作帧数 + 16 帧起跳准备」
-  推导的碰撞提醒，不是模型 Score。提示词要求优先避险，但代码不会强制替换模型动作。
-- 每次决策还收到隔离模拟器副本计算的 7 个动作物理预测：`next` 对应当前 16 帧，
-  `held` 对应持续按同一动作 60 帧，均为 `[前进位移,y,运动阶段]`；
-  每项同时说明下一决策时能否重新起跳。
-  预测不推进或回退真实游戏，不替模型选动作，不读取之前的局数。
-  预测结果逐项写进 Choice 的选项说明，所有 7 个选项都保留，包括可能死亡的选项；
-  代码不筛选或替换模型的选择。
-  若当前动作暂时存活但持续持有会死亡，再从下一决策点测试全部 7 种后续动作。
-  若它们都在下一间隔内死亡，将该选项标为 `TRAP`，让模型看到短期前进后的不可挽回风险。
-  没有此标记不代表更远未来安全。
-  长期预测假设中间不换动作，并非对后续不同决策序列的保证。
-- 死亡、旗杆/终点或 `MAX_DECISIONS`（默认 3000）后停止，不自动重开。
-  暂停会取消当前请求，并丢弃迟到的模型回答；重新开始是新 run。
-  模型、解析、ROM、日志写入错误会明确显示并停止，不替换成假成功或默认动作。
-- 画面由 NES framebuffer 在本地 Canvas 显示；无声音。
-  页面截图仅用于开发者验证 UI，不会发送给 Jev/Gemma。
-
-## 日志、配置与隔离
-
-### 精简模型输入
-
-完整遥测仍在本地保留，已有跨局记录不会删除；仅发送精简投影给模型：去掉分数、UUID、
-重复说明等控制无关数据，地形矩形用 `[左,上,右,下]` 表示，去重当前地形与地面预览。
-保留所有当前可见敌人/地形、未知值、升降速度、撞顶/落地/松键状态及 16 帧动作间隔。
-启用跨局经验时，从相关记录中选最近的 1 条失败和 1 条进展，在当前位置附近各取最多 4 段，
-另保留实际结束动作，避免把途中片段误读为死亡原因。
-连续同动作的平地移动/原地卡住会合并并保留次数；撞顶、落地和换键不合并。
-截断明确标记省略步数，部分进展不会改写成通关；原始经验文件不裁剪。
-
-页面显示服务实际返回的输入 tokens、状态压缩前后字符数，以及最近实际发送的精简状态。
-JSONL 的 request 保留完整遥测，choice 中的 `modelInput` 和 `modelQuestions`
-记录实际精简状态与问题（包括各选项的物理预测）。
-此优化不改变模型、采样参数、16 帧决策间隔或推理时暂停的控制方式。
-
-### 跨局经验
-
-**默认关闭**：每局独立推理，不读取或保存跨局经验；已有记录保持不变。
-`USE_EXPERIENCE=1` 可显式开启以下行为，`USE_EXPERIENCE=0` 保持关闭。
-
-开启后，每次死亡、到达终点、决策上限或手动重开，保存最近最多 12 次实际动作及位移、
-撞顶/落地/持续按跳等事实到 `midscene_run/experience/<ROM SHA-256>/frames-<间隔>/`。
-重开及重启服务不会丢失已保存经验。模型读取最近 64 局的统计，并在接近失败区域时
-检索最多 2 条失败序列及 1 条更远进展序列，再按上述规则精简发送，提示其改变起跳位置、速度或松键时机。
-未到终点的进展记录不会标记为通关；取消推理不会凭空产生动作经验。
-
-这是**持久化上下文记忆，不是模型权重训练**；最终动作仍由 Gemma 的 Choice 决定。
-不保证每局都会改善，不自动重开。8 帧和 16 帧经验严格隔离，旧版 JSONL 不自动导入。
-升降状态使用 RAM 垂直速度，而不是把“跳跃中”都标成“上升”。
-存储损坏或写入失败会明确报错并停止，不静默丢弃学习记录。
-要从零开始推理，使用默认的 `USE_EXPERIENCE=0`，无需删除历史文件。
-
-`midscene_run/logs/<run-id>.jsonl` 保存 ROM 的 SHA-256（不保存内容）、每次输入、
-模型原始回答、动作、真实推进帧数、后续状态、错误/取消记录。
-适配器日志在 `midscene_run/jev/`，合成状态探针在 `midscene_run/probes/`。
-这些目录全部被 Git 忽略；不要提交或分发自己的 ROM。
+## 配置与证据
 
 | 环境变量 | 默认值 |
 | --- | --- |
-| `GAME_PORT` | `4174` |
-| `MARIO_ROM` | 无；在页面选择 `.nes` |
-| `JEV_BASE_URL` | `http://127.0.0.1:8766` |
-| `FRAMES_PER_DECISION` | `16` |
+| `GAME_PORT` | `4175` |
+| `THIS_THAT_BASE_URL` | `http://127.0.0.1:8767` |
+| `MARIO_ROM` | 无；页面选择 `.nes` |
+| `FRAMES_PER_DECISION` | `16`，允许 1–60 |
 | `MAX_DECISIONS` | `3000` |
-| `USE_EXPERIENCE` | `0`；`1` 显式启用跨局记忆 |
-| `JEV_PORT`（自带适配器） | `8766` |
-| `GEMMA_BASE_URL`（自带适配器） | `http://127.0.0.1:8765/v1` |
-| `GEMMA_MODEL`（自带适配器） | `/models` 中唯一模型 |
+| `USE_EXPERIENCE` | `0` |
 
-服务器只绑定 `127.0.0.1`，拒绝异源写请求、错误 Host、跨站子资源读取。
-所有运行时模型请求仅允许数字回环地址 `127.0.0.1` / `[::1]`，禁用重定向。
-为避免 DNS 重绑定，不接受 `localhost` 或自定义域名作为模型地址。
-软件依赖安装需要包源网络，但运行时不连接云端。
-现有适配器是用户信任的本地服务；它的上游配置仍由该服务自身负责。
+更改模型端口：`pnpm model --port 8768`，游戏端对应设置
+`THIS_THAT_BASE_URL=http://127.0.0.1:8768`。
+两个服务都仅绑定 `127.0.0.1`，校验 Host/Origin 并拒绝跨站请求。
+运行时模型地址仅允许数字 HTTP 回环地址；禁止重定向、DNS 域名和 URL 内凭据。
 
-## 验证
+`midscene_run/logs/<run-id>.jsonl` 保存完整遥测、实际精简输入和问题说明、
+模型身份/原生分布、执行动作、后续坐标及错误。所有运行产物均被 Git 忽略。
+模型失败会停止游戏，不会变成默认动作。
 
 ```bash
-# 示例内，无模型/ROM 依赖
-pnpm test
-
-# 仓库根目录
-pnpm test
 pnpm run lint
+pnpm test
+pnpm run test:python
+pnpm probe
+MARIO_ROM=midscene_run/roms/user-supplied.nes SMOKE_DECISIONS=20 pnpm smoke
 ```
 
-测试覆盖 RAM/地形解析、动作协议、本地地址约束、HTTP 桥接、取消/并发、错误、
-终局与日志，以及真实 JSNES 执行原创的极小 6502 测试程序。
-测试程序不含 Nintendo 代码或素材，不等同于真实马里奥验证。
-`pnpm smoke` 才是用户 ROM + 真实本地模型的端到端检查，日志给出实际动作与位移；
-通过短程 smoke 不代表模型能通关。
+单元测试不需要模型权重或 Nintendo ROM，包含在真实 JSNES 中执行的原创极小 6502 程序。
+`probe` 用合成 RAM 测试真实模型；`smoke` 才使用用户 ROM 和真实模型。
+mock 通过或短程 smoke 都不等同于通关。
 
-本工作区已用用户提供的 Europe Rev A ROM、本地 Jev/Gemma、关闭跨局经验、
-16 帧间隔实际完成一次 **1-1 到达旗杆**：138 次模型决策、2194 个游戏帧，
-终态 `clear=true`、`x=3161`，未死亡且仍有 3 条生命。
-完整日志为 `midscene_run/logs/d10d0a8a-6dea-47d4-9463-345dd46eb890.jsonl`
-（仅本地运行产物，不随源码分发）。每个实际动作均与原始 Choice 相同；
-逐步独立重放也复核了所有坐标及终点状态。此结果不保证每次推理都能复现通关。
+此前是 **Gemma 基线**完成了无跨局经验的 1-1：138 次决策、2194 帧，
+终态 x3161、全部 3 条生命仍在。本地证据：
+`midscene_run/logs/d10d0a8a-6dea-47d4-9463-345dd46eb890.jsonl`。
+不能把这次结果归为 This-That 的成绩。
+
+**This-That 的真实通关记录：**`59adc974-09de-4850-9c3e-0011cb220ccf`，
+使用用户提供的 Europe Rev A ROM，关闭跨局经验，每次推进 16 帧。
+从首次请求到终态，共 **87 次决策、1388 个模拟帧、85.02 秒**；
+决策 HTTP 平均延迟 **511.8 ms**，所有回答生成 token 数为零。
+终态 `clear=true`、`dead=false`、`x=3161`，仍有 3 条生命。
+
+每个执行动作都与原生模型选择一致，独立 ROM 重放复核了全部 87 次玩家/局内状态变化。
+本地证据为
+`midscene_run/logs/59adc974-09de-4850-9c3e-0011cb220ccf.jsonl` 和
+`midscene_run/verification/59adc974-09de-4850-9c3e-0011cb220ccf-audit.json`。
+这是一轮已经验证的成功记录，不保证以后每局都能通关，也不是与不同输入/策略的
+Gemma 进行的严格受控模型性能比较。
 
 ## 来源与授权
 
-设计参考 [fhshaik/typesafe-mario](https://github.com/fhshaik/typesafe-mario)，
-检查的版本为 `ca22449ed187118d19326d1f54b01b6636578aa4`。
-该版本没有声明许可证，**未复制其源代码、提示词或测试**；本实现独立编写，仅参考架构和 RAM 地址事实。
-还对照了 [gym-super-mario-bros 的 RAM 地址说明](https://github.com/Kautenja/gym-super-mario-bros/blob/master/gym_super_mario_bros/smb_env.py)，没有安装其可能附带游戏资源的依赖。
+保留 Midscene 的 MIT 许可证。JSNES 2.1.0 使用 Apache-2.0，
+许可证随依赖安装。
+[FLock-io/this-that-model](https://github.com/FLock-io/this-that-model)
+为 MIT 授权，代码固定为
+`6af11c63c8bb260aa4bed2b7717f33f25decd16e`。
+MIT 权重明确使用 **1.2**，版本
+`c4d1c30b8d512d278726de439b8cc81fccc70c8f`；
+不会误用上游 API 的默认 1.0。
 
-NES 引擎使用 [JSNES 2.1.0](https://github.com/bfirsh/jsnes/tree/v2.1.0)，Apache-2.0 授权；
-许可证随 npm 依赖安装，未复制其源码到本示例。新代码遵循本仓库许可证。
-Super Mario Bros 名称及游戏资源归各自权利人；本项目不提供取得 ROM 的途径。
+架构参考 [fhshaik/typesafe-mario](https://github.com/fhshaik/typesafe-mario)，
+检查版本 `ca22449ed187118d19326d1f54b01b6636578aa4` 未声明许可证，
+因此没有复制其源码、提示词、测试或游戏素材。RAM 地址事实也对照了
+[gym-super-mario-bros](https://github.com/Kautenja/gym-super-mario-bros/blob/master/gym_super_mario_bros/smb_env.py)，
+但没有安装该依赖。Nintendo 名称和游戏资源归各自权利人；本项目不提供 ROM 获取途径。

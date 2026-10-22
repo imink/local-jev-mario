@@ -7,6 +7,9 @@
   "scripts": {
     "start": "node server.mjs",
     "jev": "node local-jev.mjs",
+    "model": ".venv/bin/python local_this_that.py",
+    "download:model": ".venv/bin/python download_model.py",
+    "test:python": ".venv/bin/python -m unittest discover -s tests -p 'test_*.py'",
     "test": "node --test tests/*.test.mjs",
     "lint": "biome check . --no-errors-on-unmatched",
     "probe": "node probe.mjs",

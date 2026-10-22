@@ -13,6 +13,17 @@ import { answer, ramFixture } from './fixtures.mjs';
 
 const state = () => new Telemetry(16).sample(ramFixture(), 0);
 
+function nativeAnswer(action = 'right_run') {
+  const result = answer(action);
+  result.engine = 'this-that';
+  result.model = 'flock-io/this-that-model-1.2';
+  result.answers.move.probabilities = Object.fromEntries(
+    Object.keys(ACTIONS).map((key) => [key, key === action ? 0.7 : 0.05]),
+  );
+  result.answers.move.confidence = 0.7;
+  return result;
+}
+
 async function serve(t, handler) {
   const server =
     typeof handler === 'function' ? createServer(handler) : handler;
@@ -83,7 +94,7 @@ test('existing Jev wire format contains structured JSON only', async (t) => {
     assert.equal(request.assets, undefined);
     assert.equal(request.state.game.player.x, 40);
     validateRequest(request);
-    res.end(JSON.stringify(answer('left')));
+    res.end(JSON.stringify(nativeAnswer('left')));
   });
   const decision = await choose(state(), { baseURL: url, runId: 'probe' });
   assert.equal(
@@ -158,7 +169,7 @@ test('HTTP failures and aborts do not become a fallback action', async (t) => {
   );
 });
 
-test('standalone compatible Jev health and actual HTTP bridge', async (t) => {
+test('legacy Gemma bridge still works but is rejected as a this-that fallback', async (t) => {
   const upstream = await serve(t, (req, res) => {
     if (req.url === '/v1/models')
       res.end(JSON.stringify({ data: [{ id: 'model' }] }));
@@ -184,11 +195,10 @@ test('standalone compatible Jev health and actual HTTP bridge', async (t) => {
     }),
   );
   assert.equal((await fetchJSON(`${bridge}/health`)).ready, true);
-  const result = await choose(state(), {
-    baseURL: bridge,
-    runId: 'bridge-test',
-  });
-  assert.equal(result.action, 'jump');
+  await assert.rejects(
+    choose(state(), { baseURL: bridge, runId: 'bridge-test' }),
+    /different decision backend/,
+  );
   assert.deepEqual(
     events.map((event) => event.kind),
     ['request', 'response'],
@@ -202,4 +212,62 @@ test('standalone compatible Jev health and actual HTTP bridge', async (t) => {
     body: JSON.stringify(decisionRequest(state())),
   });
   assert.equal(denied.status, 403);
+});
+
+test('native probabilities are preserved and confidence is the selected-option probability', () => {
+  for (const action of Object.keys(ACTIONS)) {
+    const input = nativeAnswer(action);
+    const result = parseDecision(input);
+    assert.equal(result.action, action);
+    assert.equal(result.confidence, 0.7);
+    assert.deepEqual(result.probabilities, input.answers.move.probabilities);
+  }
+  for (const mutate of [
+    (move) => {
+      move.probabilities = Object.fromEntries(
+        Object.entries(move.probabilities).filter(([key]) => key !== 'noop'),
+      );
+    },
+    (move) => {
+      move.probabilities.extra = 0;
+    },
+    (move) => {
+      move.probabilities.noop = -0.1;
+    },
+    (move) => {
+      move.probabilities.noop = Number.NaN;
+    },
+    (move) => {
+      move.probabilities.noop = '0.05';
+    },
+    (move) => {
+      move.probabilities.noop = 0.2;
+    },
+    (move) => {
+      move.choice = 'left';
+    },
+    (move) => {
+      move.confidence = 0.9;
+    },
+    (move) => {
+      move.probabilities = undefined;
+    },
+  ]) {
+    const input = nativeAnswer();
+    mutate(input.answers.move);
+    assert.throws(() => parseDecision(input), /distribution/);
+  }
+});
+
+test('this-that identity does not excuse missing native probabilities', async (t) => {
+  const result = {
+    ...answer(),
+    engine: 'this-that',
+    model: 'flock-io/this-that-model-1.2',
+  };
+  const url = await serve(t, (_req, res) => res.end(JSON.stringify(result)));
+  await assert.rejects(
+    choose(state(), { baseURL: url, runId: 'missing-probabilities' }),
+    /actual action probability/,
+  );
 });

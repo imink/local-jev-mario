@@ -18,7 +18,7 @@ for (let column = 0; column < 16; column++)
 const state = new Telemetry(16).sample(ram, 0);
 state.probe =
   'Synthetic RAM contract probe; NOT evidence of real Mario gameplay.';
-const baseURL = process.env.JEV_BASE_URL ?? 'http://127.0.0.1:8766';
+const baseURL = process.env.THIS_THAT_BASE_URL ?? 'http://127.0.0.1:8767';
 const health = await checkJev(baseURL);
 const runId = randomUUID();
 const decision = await choose(state, { baseURL, runId });
