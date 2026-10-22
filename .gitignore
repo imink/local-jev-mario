@@ -1,0 +1,5 @@
+node_modules/
+midscene_run/
+*.nes
+*.rom
+.env

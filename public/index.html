@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Local Jev Mario</title>
+    <link rel="stylesheet" href="/style.css">
+    <script type="module" src="/app.mjs"></script>
+  </head>
+  <body>
+    <header><h1>Local Jev Mario</h1><p>NES → RAM / JSON → 本地 Jev → Gemma → 手柄 · 不向模型发送截图</p></header>
+    <main>
+      <section aria-label="游戏">
+        <canvas id="screen" width="256" height="240" aria-label="NES 游戏画面">浏览器需要支持 Canvas。</canvas>
+        <p id="status" role="status">请加载自己合法持有的 SMB1 ROM。项目不提供 ROM。</p>
+        <label for="rom">本地 .nes 文件（仅内存加载，不保存或上传到云端）</label>
+        <input id="rom" type="file" accept=".nes">
+        <div class="controls">
+          <button id="load" type="button">加载 ROM</button>
+          <button id="start" type="button" disabled>启动 Agent</button>
+          <button id="step" type="button" disabled>单步决策</button>
+          <button id="pause" type="button" disabled>暂停</button>
+          <button id="restart" type="button" disabled>重新开始</button>
+        </div>
+        <p id="error" role="alert"></p>
+        <p>推理期间模拟器暂停；默认每 16 个模拟帧决策一次（可配置，不是每秒 16 次）。死亡、到达终点或决策上限后停止，不自动重开。无声音。</p>
+      </section>
+      <section aria-label="模型与遥测">
+        <h2>模型与遥测</h2>
+        <p id="health">正在检查本地 Jev…</p>
+        <button id="check" type="button">检查服务</button>
+        <dl>
+          <dt>已执行决策</dt><dd id="count">0</dd>
+          <dt>动作</dt><dd id="action">未提供</dd>
+          <dt>推理延迟</dt><dd id="latency">未提供</dd>
+          <dt>模型输入</dt><dd id="input-size">未提供</dd>
+          <dt>向前跳有用度 (Noul)</dt><dd id="jump">未提供</dd>
+          <dt>动作概率 / 置信度 / Score</dt><dd>未提供（本地兼容协议不含这些字段）</dd>
+          <dt>进度</dt><dd id="progress">未加载</dd>
+          <dt>跨局记忆</dt><dd id="learning">尚无经验</dd>
+          <dt>决策日志</dt><dd id="log">未开始</dd>
+        </dl>
+        <p>默认关闭跨局经验，每局独立推理。模型可查看当前状态的动作物理预测；预测副本不控制真实游戏。USE_EXPERIENCE=1 可显式开启本地跨局记忆（不是权重训练）。</p>
+        <details open><summary>完整遥测（模型接收精简版）</summary><pre id="telemetry">尚未加载 ROM</pre></details>
+        <details><summary>最近实际发送的精简状态与问题</summary><pre id="model-input">尚未请求</pre></details>
+      </section>
+    </main>
+    <footer>支持 Super Mario Bros (World) / Europe Rev A 的 mapper-0 iNES。JSNES 使用 NTSC 时钟；欧洲版为兼容运行，非精确 PAL 模拟。不是自制平台游戏，也不是官方 Jev SDK。模型不保证通关。</footer>
+  </body>
+</html>

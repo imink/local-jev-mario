@@ -1,0 +1,17 @@
+{
+  "name": "local-jev-mario",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.3.0",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "node server.mjs",
+    "jev": "node local-jev.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "lint": "biome check . --no-errors-on-unmatched",
+    "probe": "node probe.mjs",
+    "smoke": "node smoke.mjs"
+  },
+  "dependencies": { "jsnes": "2.1.0" },
+  "devDependencies": { "@biomejs/biome": "1.9.4" }
+}

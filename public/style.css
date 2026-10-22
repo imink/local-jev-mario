@@ -1,0 +1,100 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  background: #121824;
+  color: #ecf0f7;
+}
+body {
+  margin: 0 auto;
+  padding: 24px;
+  max-width: 1320px;
+}
+h1 {
+  margin-bottom: 8px;
+}
+p,
+footer {
+  color: #bcc9de;
+  line-height: 1.6;
+}
+main {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(300px, 1fr);
+  gap: 28px;
+}
+section {
+  min-width: 0;
+  padding: 20px;
+  background: #1c2638;
+  border-radius: 12px;
+}
+canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 256 / 240;
+  image-rendering: pixelated;
+  background: #05080d;
+}
+label {
+  display: block;
+  margin: 16px 0 8px;
+}
+input {
+  max-width: 100%;
+}
+button {
+  padding: 10px 14px;
+  border: 1px solid #8ea6ca;
+  border-radius: 6px;
+  background: #2b4366;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button:focus-visible,
+input:focus-visible,
+summary:focus-visible {
+  outline: 3px solid #ffd87d;
+  outline-offset: 3px;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+dl {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 10px;
+}
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+pre {
+  overflow: auto;
+  max-height: 450px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+#error {
+  color: #ffbdbd;
+  white-space: pre-wrap;
+}
+footer {
+  margin-top: 20px;
+}
+@media (max-width: 850px) {
+  main {
+    grid-template-columns: 1fr;
+  }
+  body {
+    padding: 12px;
+  }
+}
