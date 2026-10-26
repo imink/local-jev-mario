@@ -7,7 +7,7 @@
 → 手柄。模型一次前向计算为九个动作打分，不生成文本。
 默认仍使用这个完全本地的后端。显式选择 `jev-official` 后，可改用 TypeSafe 托管的
 官方 Jev 决策模型，需要 API Key，并会发送结构化游戏状态。
-两种模式都不发送截图或 ROM、不由脚本代选动作，也不包含 Nintendo 素材。
+两种模式都不向模型发送截图或 ROM、不由脚本代选动作，Git 仓库不包含 Nintendo 素材。
 
 ## 浏览器独立版与 Cloudflare
 
@@ -16,11 +16,14 @@
 必须待 DNS 和证书激活后，才能认为该域名发布完成。
 它不连接本地 Node 游戏，也不公开实时 Jev 接口；GitHub 仓库继续保持 PRIVATE。
 
-点击 **加载本地 ROM / Load ROM**，选择自行合法持有的 `.nes`，
-再点击 **开始游戏 / Start game** 手动游玩，或点击 **回放** 观看正式通关。
-加载有效本地 ROM 前，两项按钮均保持禁用。`File.arrayBuffer()` 仅把 ROM 读入当前
-标签页内存；应用不上传、不调用模型、不使用账户、Cookie、分析追踪或 ROM 下载。
-Cloudflare 会接收正常的站点请求，并可能保留基础设施日志；本地 ROM 不会发送给托管方。
+点击 **加载 ROM / Load ROM** 从 Cloudflare 下载游戏，再点击
+**开始游戏 / Start game** 手动游玩，或点击 **回放** 观看正式通关。
+加载不会自动开局；通过格式和 SHA-256 校验前，两项按钮均保持禁用，
+下载失败会明确报错。发布者已确认此 ROM 的公开托管和分发授权。
+每次构建仍需显式授权标志和本地源文件；ROM 发布到 Cloudflare，但不提交 Git。
+备用的 **导入本地 ROM** 支持自行合法持有的 `.nes`，`File.arrayBuffer()` 仅把文件
+读入当前标签页内存，不上传。应用不调用模型、不使用账户、Cookie 或分析追踪。
+Cloudflare 会接收正常的站点及 ROM 下载请求，并可能保留基础设施日志。
 正式回放要求与来源面板所列 SHA-256 完全相同的 Europe Rev A ROM；
 其它受支持 SMB1 版本可用于手动游玩。JSNES 使用 NTSC 节拍，声音关闭。
 
@@ -39,17 +42,21 @@ Cloudflare 会接收正常的站点请求，并可能保留基础设施日志；
 
 ```bash
 pnpm install --frozen-lockfile
+MARIO_ROM_DISTRIBUTION_AUTHORIZED=true \
+MARIO_PUBLIC_ROM=midscene_run/roms/user-supplied.nes \
 MARIO_REPLAY_LOG=midscene_run/logs/0e61deb0-42bd-4d6d-b554-87c6fa187020.jsonl pnpm build:static
 pnpm preview:static
 ```
 
 本地预览为 **http://127.0.0.1:4180**，不影响 4175 的冻结胜利态。
 构建时需要本地私有的正式日志，单独克隆仓库不会得到日志。
-日志缺失或被修改会明确报错，不会生成空回放充数。
+日志缺失或被修改会明确报错，不会生成空回放充数；还必须提供获授权的 ROM 源文件。
+仅拥有游戏副本不代表拥有公开分发权。
 
 `scripts/public-history.mjs` 核对源日志哈希后，仅导出固定白名单中的游戏字段、
 问题及回答值。未知输入字段、非空 memory、敏感字符串或 Choice 不一致都阻止
-构建。不会复制请求、头、密钥、账户元数据、原始日志、ROM、截图或 NES 快照。
+构建。不会复制请求、头、密钥、账户元数据、原始日志、截图或 NES 快照。
+获授权 ROM 单独核验正式局哈希后，仅复制为 `rom/game.nes`。
 53 个带哈希的 JSON 分块未压缩约 31 MB，浏览器只保留当前分块。
 `scripts/build-static.mjs` 按显式文件清单生成被忽略的 `.cloudflare/site/`，
 仅发布该目录；生成物及本机原始证据不提交到 Git。

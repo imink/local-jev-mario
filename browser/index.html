@@ -13,16 +13,17 @@
   <main>
     <h1>Jev Mario · Replay &amp; Play</h1>
     <p>6275 个真实 Jev 动作，从 1-1 到 8-4。Recorded decisions, not a live AI service.</p>
-    <p><strong>自行合法持有的 ROM 仅在浏览器本地读取，不上传。</strong> Bring your own lawfully obtained ROM; it stays in this tab. No ROM or Nintendo assets are bundled.</p>
-    <label>加载本地 ROM / Load ROM <input id="rom" type="file" accept=".nes"></label>
+    <p>点击 Load ROM 从 Cloudflare 下载游戏，再点击 Start game。游戏在浏览器运行，不调用实时 AI。Load the hosted ROM, then start; gameplay runs in this tab.</p>
     <div class="controls">
+      <button id="load-rom" disabled>加载 ROM / Load ROM</button>
       <button id="manual" disabled>开始游戏 / Start game</button>
       <button id="replay" disabled>回放本局（从 1-1） / Replay</button>
       <button id="toggle" disabled>继续 / Resume</button>
       <button id="step" disabled>逐决策 / Next decision</button>
       <button id="speed">回放速度 / Speed 1×</button>
     </div>
-    <p id="message" role="status" aria-live="polite">先加载本地 .nes，再点击“开始游戏”或“回放”。Load your local .nes, then click Start game or Replay.</p>
+    <details><summary>备用：导入本地 ROM / Import local ROM instead</summary><label>本地 .nes 文件 / Local .nes file <input id="rom" type="file" accept=".nes"></label><p>仅在浏览器内读取，不上传。Local files are read in this tab and never uploaded.</p></details>
+    <p id="message" role="status" aria-live="polite">先点击“加载 ROM”，再点击“开始游戏”或“回放”。Click Load ROM, then Start game or Replay.</p>
     <canvas id="screen" width="256" height="240" tabindex="0" aria-label="Mario game. Manual: arrow keys, Z or Space jump, X run, Enter start, right Shift select."></canvas>
     <p>手动：点击画面，方向键移动，Z/空格跳，X跑；离开或失焦会释放按键并暂停。Manual: focus the canvas. Blur releases all controls and pauses. Audio is disabled.</p>
     <h2 id="decision">无历史决策 / No historical decision</h2>

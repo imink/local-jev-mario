@@ -8,7 +8,7 @@ Real NES emulator → SMB1 RAM / structured state → local
 without generating text. This remains the default, local-only backend.
 An explicit `jev-official` backend uses TypeSafe's hosted Jev decision model.
 Neither mode sends screenshots or ROM data, overrides model actions, or bundles
-Nintendo assets. Official mode sends structured game state to TypeSafe and
+Nintendo assets in the repository. Official mode sends structured game state to TypeSafe and
 requires an API key.
 
 ## Browser-only Cloudflare site
@@ -20,12 +20,17 @@ that hostname is considered deployed.
 It does not connect to the local Node game or expose a live Jev endpoint.
 The private GitHub repository does not need to become public.
 
-Click **Load ROM**, select your own legally obtained `.nes` file, then click
+Click **Load ROM** to download the hosted game from Cloudflare, then click
 **Start game** for manual play or **Replay** for the recorded campaign.
-Both controls stay disabled until a valid local ROM is loaded. `File.arrayBuffer()`
-reads it into this tab only: the app has no upload, model request, account,
-cookie, analytics, or ROM download. Cloudflare receives ordinary site requests
-and may retain infrastructure logs; the local ROM is not sent to the host.
+Loading does not start a game automatically. Both controls stay disabled until
+the ROM passes format and SHA-256 checks; failed downloads remain explicit errors.
+The publisher confirmed public hosting/distribution authorization for this ROM.
+Each build requires an explicit authorization flag and a private source file;
+the ROM is deployed to Cloudflare but is not committed to Git.
+The optional **Import local ROM instead** reads a lawfully obtained `.nes` with
+`File.arrayBuffer()` in this tab only, without uploading it. The app has no model
+request, account, cookie, or analytics. Cloudflare receives ordinary site and ROM
+download requests and may retain infrastructure logs.
 The recorded campaign requires the exact Europe
 Rev A SHA-256 shown in the provenance panel. Other supported SMB1 revisions can
 be used for manual play. JSNES uses NTSC timing; sound is disabled.
@@ -47,6 +52,8 @@ Only Node 24+ and pnpm are needed to build this edition; no Python/model setup:
 
 ```bash
 pnpm install --frozen-lockfile
+MARIO_ROM_DISTRIBUTION_AUTHORIZED=true \
+MARIO_PUBLIC_ROM=midscene_run/roms/user-supplied.nes \
 MARIO_REPLAY_LOG=midscene_run/logs/0e61deb0-42bd-4d6d-b554-87c6fa187020.jsonl pnpm build:static
 pnpm preview:static
 ```
@@ -54,13 +61,16 @@ pnpm preview:static
 The local preview is **http://127.0.0.1:4180**, separate from the frozen game on
 4175. The source campaign remains private and must be available locally to
 build; a fresh clone alone does not include it. Missing or changed campaign
-data is an explicit build error, not an empty replay.
+data is an explicit build error, not an empty replay. The authorized ROM source
+is also required. Owning a game copy alone does not grant public distribution rights.
 
 `scripts/public-history.mjs` exports a fixed whitelist of gameplay fields,
 instructions, and answer values after checking the original log hash. Unknown
 input fields, nonempty memory, sensitive strings, and mismatched Choices fail
-the build. Requests, headers, credentials, account metadata, raw logs, ROMs,
-screenshots, and NES snapshots are not copied. The 53 hash-checked JSON chunks
+the build. Requests, headers, credentials, account metadata, raw logs,
+screenshots, and NES snapshots are not copied. The authorized ROM is separately
+validated against the campaign hash and copied only to `rom/game.nes`.
+The 53 hash-checked JSON chunks
 total about 31 MB uncompressed; only the current chunk is retained in memory.
 `scripts/build-static.mjs` copies an explicit static file list into ignored
 `.cloudflare/site/`; only that directory is deployed. Build output and the

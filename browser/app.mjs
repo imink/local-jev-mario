@@ -1,3 +1,4 @@
+import { boundedBytes, loadHostedROM } from './assets.mjs';
 import { BrowserMario, bindKeyboard, sha256, validateROM } from './core.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -21,6 +22,7 @@ let replaySpeed = 1;
 
 function controls() {
   $('rom').disabled = busy;
+  $('load-rom').disabled = busy || !manifest;
   $('replay').disabled = busy || !rom || !manifest;
   $('manual').disabled = busy || !rom;
   $('toggle').disabled = busy || mode === 'idle' || phase === 'complete';
@@ -81,31 +83,7 @@ function fail(error) {
 }
 
 async function boundedJSON(url, limit, expectedHash) {
-  const response = await fetch(url, {
-    credentials: 'omit',
-    redirect: 'error',
-    cache: 'no-cache',
-  });
-  if (!response.ok) throw new Error(`Static data HTTP ${response.status}.`);
-  const reader = response.body.getReader();
-  const parts = [];
-  let length = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    length += value.length;
-    if (length > limit) {
-      await reader.cancel();
-      throw new Error('Static data exceeds its size limit.');
-    }
-    parts.push(value);
-  }
-  const bytes = new Uint8Array(length);
-  let offset = 0;
-  for (const part of parts) {
-    bytes.set(part, offset);
-    offset += part.length;
-  }
+  const bytes = await boundedBytes(url, limit);
   if (expectedHash && (await sha256(bytes)) !== expectedHash)
     throw new Error('Static history chunk hash differs.');
   return JSON.parse(new TextDecoder().decode(bytes));
@@ -222,31 +200,48 @@ async function start(nextMode) {
   }
 }
 
-$('rom').addEventListener('change', async () => {
+async function loadROM(hosted) {
+  if (busy) return;
   pause();
   keyboard.release();
   mode = 'idle';
   rom = null;
   romHash = null;
+  verifiedHash = null;
+  game.history = null;
+  game.pixels.fill(0);
+  $('state').textContent = '未加载 / Not loaded';
+  render();
   busy = true;
   controls();
+  $('message').textContent = hosted
+    ? '正在从 Cloudflare 加载 ROM… / Loading ROM from Cloudflare…'
+    : '正在读取本地 ROM… / Reading local ROM…';
   try {
-    const file = $('rom').files[0];
-    if (!file || file.size !== 40976)
-      throw new Error('Choose a 40976-byte .nes file, not ZIP.');
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    validateROM(bytes);
-    romHash = await sha256(bytes);
-    rom = bytes;
+    if (hosted) {
+      const loaded = await loadHostedROM(manifest?.romSHA256);
+      romHash = loaded.hash;
+      rom = loaded.bytes;
+    } else {
+      const file = $('rom').files[0];
+      if (!file || file.size !== 40976)
+        throw new Error('Choose a 40976-byte .nes file, not ZIP.');
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      validateROM(bytes);
+      romHash = await sha256(bytes);
+      rom = bytes;
+    }
     $('message').textContent =
-      `ROM 已加载，仅在此浏览器内存。点击“开始游戏”或“回放”。ROM loaded locally; click Start game or Replay. SHA-256: ${romHash}`;
+      `${hosted ? 'ROM 已从 Cloudflare 加载并核验 / ROM loaded from Cloudflare and verified.' : 'ROM 已从本地加载，不上传 / ROM loaded locally, not uploaded.'} 点击“开始游戏”或“回放” / Click Start game or Replay. SHA-256: ${romHash}`;
   } catch (error) {
     fail(error);
   } finally {
     busy = false;
     controls();
   }
-});
+}
+$('load-rom').addEventListener('click', () => loadROM(true));
+$('rom').addEventListener('change', () => loadROM(false));
 $('replay').addEventListener('click', () => start('replay'));
 $('speed').addEventListener('click', () => {
   replaySpeed = replaySpeed === 1 ? 4 : replaySpeed === 4 ? 16 : 1;

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { NES } from 'jsnes';
+import { loadHostedROM } from '../browser/assets.mjs';
 import {
   ACTIONS,
   BrowserMario,
@@ -18,6 +20,125 @@ import {
 } from '../scripts/public-history.mjs';
 import { readPlayer } from '../telemetry.mjs';
 import { homebrewROM } from './fixtures.mjs';
+
+test('hosted ROM fetch is bounded, credential-free and hash checked', async (t) => {
+  const rom = new Uint8Array(homebrewROM());
+  const hash = await sha256(rom);
+  let response = () => new Response(rom);
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    calls++;
+    assert.equal(url, './rom/game.nes');
+    assert.equal(options.credentials, 'omit');
+    assert.equal(options.redirect, 'error');
+    assert(options.signal instanceof AbortSignal);
+    return response();
+  });
+  await assert.rejects(loadHostedROM(null), /valid audit hash/);
+  assert.equal(calls, 0);
+  assert.deepEqual(await loadHostedROM(hash), { bytes: rom, hash });
+  await assert.rejects(loadHostedROM('0'.repeat(64)), /SHA-256 differs/);
+  response = () => new Response('not found', { status: 404 });
+  await assert.rejects(loadHostedROM(hash), /HTTP 404/);
+  response = () => new Response(new Uint8Array(40977));
+  await assert.rejects(loadHostedROM(hash), /size limit/);
+  response = () => new Response(new Uint8Array(40976));
+  await assert.rejects(loadHostedROM(hash), /iNES/);
+  response = () => {
+    throw new Error('Network unavailable');
+  };
+  await assert.rejects(loadHostedROM(hash), /Network unavailable/);
+});
+
+test('Load ROM enables Start without starting, and failures disable stale ROM', async (t) => {
+  class Element extends EventTarget {
+    handlers = new Map();
+    textContent = '';
+    disabled = true;
+    addEventListener(name, handler) {
+      this.handlers.set(name, handler);
+    }
+    getContext() {
+      return { putImageData() {} };
+    }
+  }
+  const elements = new Map();
+  const document = new EventTarget();
+  document.getElementById = (id) => {
+    if (!elements.has(id)) elements.set(id, new Element());
+    return elements.get(id);
+  };
+  const window = new EventTarget();
+  window.document = document;
+  const replacements = {
+    window,
+    document,
+    jsnes: { NES },
+    ImageData: class {},
+  };
+  const originals = Object.getOwnPropertyDescriptors(globalThis);
+  Object.assign(globalThis, replacements);
+  t.after(() => {
+    for (const key of Object.keys(replacements)) {
+      if (originals[key])
+        Object.defineProperty(globalThis, key, originals[key]);
+      else delete globalThis[key];
+    }
+  });
+  t.mock.method(globalThis, 'setTimeout', () => 0);
+  const rom = new Uint8Array(homebrewROM());
+  const manifest = {
+    version: 1,
+    totalDecisions: 6275,
+    totalFrames: 113645,
+    chunks: [],
+    romSHA256: await sha256(rom),
+  };
+  let failed = false;
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    requests.push(url);
+    if (url === './history/manifest.json') return Response.json(manifest);
+    assert.equal(url, './rom/game.nes');
+    return failed
+      ? new Response('unavailable', { status: 503 })
+      : new Response(rom);
+  });
+  await import('../browser/app.mjs');
+  const get = (id) => document.getElementById(id);
+  assert.deepEqual(requests, ['./history/manifest.json']);
+  assert.equal(get('manual').disabled, true);
+  assert.equal(get('load-rom').disabled, false);
+  await get('load-rom').handlers.get('click')();
+  assert.equal(get('manual').disabled, false);
+  assert.equal(get('replay').disabled, false);
+  assert.equal(get('toggle').disabled, true);
+  assert.equal(get('state').textContent, '未加载 / Not loaded');
+  assert(get('message').textContent.includes('loaded from Cloudflare'));
+  await get('manual').handlers.get('click')();
+  assert.equal(JSON.parse(get('state').textContent).mode, 'manual');
+  assert.equal(JSON.parse(get('state').textContent).frame, 0);
+  failed = true;
+  await get('load-rom').handlers.get('click')();
+  assert.equal(get('manual').disabled, true);
+  assert.equal(get('replay').disabled, true);
+  assert(get('message').textContent.includes('HTTP 503'));
+  assert.equal(get('state').textContent, '未加载 / Not loaded');
+});
+
+test('static builds require explicit ROM distribution authorization', () => {
+  const result = spawnSync(process.execPath, ['scripts/build-static.mjs'], {
+    cwd: new URL('../', import.meta.url),
+    env: {
+      ...process.env,
+      MARIO_ROM_DISTRIBUTION_AUTHORIZED: 'false',
+      MARIO_PUBLIC_ROM: '',
+    },
+    encoding: 'utf8',
+  });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /Public hosting requires distribution rights/);
+});
 
 test('browser ROM boot and partial replay exactly match native emulator', async () => {
   assert.deepEqual(ACTIONS, nativeActions);
@@ -229,9 +350,10 @@ test('static deployment is isolated from Node API, credentials and private resou
     ),
   );
   assert(app.includes('file.arrayBuffer()'));
-  assert(html.includes('加载本地 ROM / Load ROM'));
+  assert(html.includes('<button id="load-rom" disabled>加载 ROM / Load ROM'));
   assert(html.includes('<button id="manual" disabled>开始游戏 / Start game'));
-  assert(app.includes('ROM loaded locally; click Start game or Replay.'));
+  assert(app.includes('ROM loaded from Cloudflare and verified.'));
+  assert(app.includes('loadHostedROM(manifest?.romSHA256)'));
   assert(html.includes("connect-src 'self'"));
   assert(html.includes("form-action 'none'"));
   assert(build.includes('Unexpected public build file.'));
