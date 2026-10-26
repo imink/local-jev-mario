@@ -7,7 +7,9 @@
       "midscene_run/**",
       ".venv/**",
       "models/**",
-      ".cache/**"
+      ".cache/**",
+      ".cloudflare/**",
+      ".wrangler/**"
     ]
   },
   "javascript": { "formatter": { "quoteStyle": "single" } },

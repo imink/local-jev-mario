@@ -8,3 +8,5 @@ midscene_run/
 models/
 __pycache__/
 *.pyc
+.cloudflare/
+.wrangler/

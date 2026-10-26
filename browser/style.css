@@ -1,0 +1,67 @@
+:root {
+  color-scheme: dark;
+  font: 16px system-ui, sans-serif;
+  background: #131924;
+  color: #eef3fa;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 1040px;
+  margin: auto;
+  padding: 24px;
+}
+.controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 16px 0;
+}
+button,
+select,
+input {
+  font: inherit;
+  padding: 8px;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+canvas {
+  display: block;
+  width: min(100%, 640px, max(256px, calc((100dvh - 380px) * 1.066667)));
+  height: auto;
+  image-rendering: pixelated;
+  background: #000;
+}
+:focus-visible {
+  outline: 3px solid #8cc8ff;
+  outline-offset: 4px;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 14px;
+  background: #202a3a;
+  max-height: 480px;
+  overflow: auto;
+}
+summary {
+  cursor: pointer;
+  padding: 12px 0;
+}
+#message {
+  min-height: 2em;
+  overflow-wrap: anywhere;
+}
+a {
+  color: #a8d5ff;
+}
+footer {
+  margin-top: 32px;
+}

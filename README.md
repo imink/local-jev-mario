@@ -11,6 +11,84 @@ Neither mode sends screenshots or ROM data, overrides model actions, or bundles
 Nintendo assets. Official mode sends structured game state to TypeSafe and
 requires an API key.
 
+## Browser-only Cloudflare site
+
+The separate static edition targets **https://jev-mario.zoink.net** using
+Cloudflare Workers Static Assets. This is a deployment target, not a claim that
+DNS, HTTPS, or account authorization has already been configured.
+It does not connect to the local Node game or expose a live Jev endpoint.
+The private GitHub repository does not need to become public.
+
+Visitors select their own legally obtained `.nes` file. `File.arrayBuffer()`
+reads it into this tab only: there is no upload, model request, account, cookie,
+analytics, or ROM download. The recorded campaign requires the exact Europe
+Rev A SHA-256 shown in the provenance panel. Other supported SMB1 revisions can
+be used for manual play. JSNES uses NTSC timing; sound is disabled.
+
+- Replay starts at 1-1 and includes all **6275 actual Choices and 486 automatic
+  transitions**, ending at frame 113645 after all 32 stages. Pause/resume,
+  next-decision, and 1×/4×/16× are available; achievable speed depends on the device.
+- The actual saved model input, questions, and answer fields are shown, not
+  invented internal reasoning. Missing confidence/Score stays missing.
+- Manual mode starts an independent game. Focus the canvas: arrows move,
+  Z/Space jumps, X runs, Enter is Start, right Shift is Select. Losing focus,
+  hiding or leaving the page releases buttons and pauses manual play.
+- Physical state is checked at every replay boundary, with a SHA-256 check of
+  the final framebuffer. The lost original live snapshot at index 3944 and its
+  deterministic reconstruction are explicitly disclosed. The original campaign
+  included maintenance and policy changes; this is not a new unattended AI run.
+
+Only Node 24+ and pnpm are needed to build this edition; no Python/model setup:
+
+```bash
+pnpm install --frozen-lockfile
+MARIO_REPLAY_LOG=midscene_run/logs/0e61deb0-42bd-4d6d-b554-87c6fa187020.jsonl pnpm build:static
+pnpm preview:static
+```
+
+The local preview is **http://127.0.0.1:4180**, separate from the frozen game on
+4175. The source campaign remains private and must be available locally to
+build; a fresh clone alone does not include it. Missing or changed campaign
+data is an explicit build error, not an empty replay.
+
+`scripts/public-history.mjs` exports a fixed whitelist of gameplay fields,
+instructions, and answer values after checking the original log hash. Unknown
+input fields, nonempty memory, sensitive strings, and mismatched Choices fail
+the build. Requests, headers, credentials, account metadata, raw logs, ROMs,
+screenshots, and NES snapshots are not copied. The 53 hash-checked JSON chunks
+total about 31 MB uncompressed; only the current chunk is retained in memory.
+`scripts/build-static.mjs` copies an explicit static file list into ignored
+`.cloudflare/site/`; only that directory is deployed. Build output and the
+original local evidence are not committed.
+
+For deployment, first authorize the account that owns `zoink.net`:
+
+```bash
+./node_modules/.bin/wrangler login
+./node_modules/.bin/wrangler whoami
+```
+
+Alternatively provide `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` through
+the environment, never source control. Authorization must permit this account's
+Worker/static-assets deployment and the zone/custom-domain operations.
+Before publishing, inspect that account's existing `jev-mario` Worker and the
+exact `jev-mario.zoink.net` DNS/custom-domain records. Do not overwrite an
+unrelated resource; resolve any conflict with its owner first. Do not change
+the root domain or other subdomains. Then:
+
+```bash
+WRANGLER_SEND_METRICS=false pnpm deploy:static --dry-run
+WRANGLER_SEND_METRICS=false pnpm deploy:static
+```
+
+`wrangler.jsonc` names only `jev-mario` and the exact custom domain. Verify both
+the returned Workers preview URL and the custom domain over HTTPS after deploy;
+a local preview/dry-run is not public-deployment proof. No anonymous temporary
+account is used. The preview/deploy scripts explicitly disable Wrangler's
+automatic `.env`/process-environment binding import, so the local Jev key never
+becomes a Worker binding. Do not replace these scripts with an unconfigured
+`wrangler dev` in the repository root.
+
 ## Branches
 
 This standalone repository was extracted from `imink/midscene`'s

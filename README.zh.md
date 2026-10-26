@@ -9,6 +9,71 @@
 官方 Jev 决策模型，需要 API Key，并会发送结构化游戏状态。
 两种模式都不发送截图或 ROM、不由脚本代选动作，也不包含 Nintendo 素材。
 
+## 浏览器独立版与 Cloudflare
+
+独立静态版使用 Cloudflare Workers Static Assets，目标域名为
+**https://jev-mario.zoink.net**。这是发布目标，不代表 DNS、HTTPS 或账户授权已完成。
+它不连接本地 Node 游戏，也不公开实时 Jev 接口；GitHub 仓库继续保持 PRIVATE。
+
+访问者必须自行选择合法持有的 `.nes`。`File.arrayBuffer()` 仅把 ROM 读入当前
+标签页内存，不上传、不调用模型、不使用账户、Cookie、分析追踪或 ROM 下载。
+正式回放要求与来源面板所列 SHA-256 完全相同的 Europe Rev A ROM；
+其它受支持 SMB1 版本可用于手动游玩。JSNES 使用 NTSC 节拍，声音关闭。
+
+- 回放从 1-1 开始，包括 **6275 个实际 Choice 与 486 条自动过场**，到第
+  113645 帧、32 关全部完成时停止。支持暂停/继续、逐决策、1×/4×/16×；
+  实际速度受设备性能限制。
+- 展示实际保存的模型输入、问题、回答字段，不编造内部推理；未提供的概率、
+  Score 不补造。
+- 手动模式开启独立新局。先点击画面：方向键移动、Z/空格跳、X跑、Enter 为
+  Start、右 Shift 为 Select。失焦、隐藏或离开页面时释放按键并暂停手动游戏。
+- 每个回放边界核验物理状态，终态核验 framebuffer 的 SHA-256。
+  3944 原 live 快照丢失及确定性重建限制仍明确显示；原局有维护和策略修改，
+  不是新的无干预 AI 实验。
+
+静态版构建只需要 Node 24+ 与 pnpm，不需要 Python 或模型环境：
+
+```bash
+pnpm install --frozen-lockfile
+MARIO_REPLAY_LOG=midscene_run/logs/0e61deb0-42bd-4d6d-b554-87c6fa187020.jsonl pnpm build:static
+pnpm preview:static
+```
+
+本地预览为 **http://127.0.0.1:4180**，不影响 4175 的冻结胜利态。
+构建时需要本地私有的正式日志，单独克隆仓库不会得到日志。
+日志缺失或被修改会明确报错，不会生成空回放充数。
+
+`scripts/public-history.mjs` 核对源日志哈希后，仅导出固定白名单中的游戏字段、
+问题及回答值。未知输入字段、非空 memory、敏感字符串或 Choice 不一致都阻止
+构建。不会复制请求、头、密钥、账户元数据、原始日志、ROM、截图或 NES 快照。
+53 个带哈希的 JSON 分块未压缩约 31 MB，浏览器只保留当前分块。
+`scripts/build-static.mjs` 按显式文件清单生成被忽略的 `.cloudflare/site/`，
+仅发布该目录；生成物及本机原始证据不提交到 Git。
+
+发布前，先授权持有 `zoink.net` 的 Cloudflare 账户：
+
+```bash
+./node_modules/.bin/wrangler login
+./node_modules/.bin/wrangler whoami
+```
+
+也可通过环境提供 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`，绝不写入
+源码；权限需覆盖本项目 Worker/静态资源发布及区域/自定义域操作。
+发布前检查该账户已有的 `jev-mario` Worker，以及精确的
+`jev-mario.zoink.net` DNS/自定义域记录。若属于其它资源，先与所有者解决冲突，
+不要覆盖。不要修改根域或其它子域。确认后执行：
+
+```bash
+WRANGLER_SEND_METRICS=false pnpm deploy:static --dry-run
+WRANGLER_SEND_METRICS=false pnpm deploy:static
+```
+
+`wrangler.jsonc` 仅声明 `jev-mario` 与指定自定义域。发布后必须通过 HTTPS
+分别验证返回的 Workers 预览 URL 和自定义域；本地预览、dry-run 不等于公网发布。
+不使用匿名临时账户。预览/发布脚本显式关闭 Wrangler 自动导入 `.env` 和进程环境
+绑定，避免本机 Jev 密钥成为 Worker binding；不要在仓库根目录直接使用未配置的
+`wrangler dev` 替代这些脚本。
+
 ## 两个分支
 
 独立仓库从 `imink/midscene` 的 `examples/local-jev-mario` 提取：

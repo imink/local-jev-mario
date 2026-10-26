@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Jev Mario · 回放与游玩 / Replay &amp; Play</title>
+  <link rel="stylesheet" href="./browser/style.css">
+  <script src="./vendor/jsnes.js" defer></script>
+  <script type="module" src="./browser/app.mjs"></script>
+</head>
+<body>
+  <main>
+    <h1>Jev Mario · Replay &amp; Play</h1>
+    <p>6275 个真实 Jev 动作，从 1-1 到 8-4。Recorded decisions, not a live AI service.</p>
+    <p><strong>自行合法持有的 ROM 仅在浏览器本地读取，不上传。</strong> Bring your own lawfully obtained ROM; it stays in this tab. No ROM or Nintendo assets are bundled.</p>
+    <label>选择本地 .nes / Local ROM <input id="rom" type="file" accept=".nes"></label>
+    <div class="controls">
+      <button id="replay" disabled>回放本局（从 1-1） / Replay</button>
+      <button id="manual" disabled>手动新局 / Manual play</button>
+      <button id="toggle" disabled>继续 / Resume</button>
+      <button id="step" disabled>逐决策 / Next decision</button>
+      <button id="speed">回放速度 / Speed 1×</button>
+    </div>
+    <p id="message" role="status" aria-live="polite">先选择本地 ROM / Choose a local ROM to begin.</p>
+    <canvas id="screen" width="256" height="240" tabindex="0" aria-label="Mario game. Manual: arrow keys, Z or Space jump, X run, Enter start, right Shift select."></canvas>
+    <p>手动：点击画面，方向键移动，Z/空格跳，X跑；离开或失焦会释放按键并暂停。Manual: focus the canvas. Blur releases all controls and pauses. Audio is disabled.</p>
+    <h2 id="decision">无历史决策 / No historical decision</h2>
+    <p>输入属于动作前；画面显示当前动作/自动过场。只展示保存过的输入与回答，不代表模型内部推理。Absent probability/Score fields were not provided.</p>
+    <pre id="state">未加载 / Not loaded</pre>
+    <details><summary>实际模型输入 / Recorded model input</summary><pre id="input">—</pre></details>
+    <details><summary>实际问题 / Recorded questions</summary><pre id="questions">—</pre></details>
+    <details open><summary>原始回答字段 / Recorded answer fields</summary><pre id="answers">—</pre></details>
+    <details><summary>审计来源、ROM 哈希与限制 / Provenance and hashes</summary><pre id="provenance"></pre></details>
+    <p>3944 原 live 快照丢失后的确定性重建不是原 live 字节对照。原正式局有维护暂停与策略修改，并非无干预实验。结束停在原生胜利触发帧。</p>
+    <footer>JSNES 2.1.0 · <a href="./vendor/JSNES-LICENSE">Apache-2.0 license</a> · No cloud model endpoint, keys, accounts, cookies or analytics.</footer>
+  </main>
+</body>
+</html>

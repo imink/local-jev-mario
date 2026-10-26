@@ -1,0 +1,8 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jev-mario",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": ".cloudflare/site" },
+  "workers_dev": true,
+  "routes": [{ "pattern": "jev-mario.zoink.net", "custom_domain": true }]
+}
