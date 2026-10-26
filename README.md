@@ -70,6 +70,7 @@ pnpm preview:static
 
 Preview: **http://127.0.0.1:4180**. With the appropriate Cloudflare authorization,
 `pnpm deploy:pages` publishes to the configured `jev-mario` Pages project.
+The repository default branch and Pages production branch are both `main`.
 The build exports only approved gameplay fields and static assets, not credentials,
 raw logs or snapshots. Optional local ROM imports stay in the browser.
 

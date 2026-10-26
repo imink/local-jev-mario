@@ -493,7 +493,7 @@ test('static deployment is isolated from Node API, credentials and private resou
   for (const command of ['deploy:static', 'deploy:pages']) {
     assert(
       packageJSON.scripts[command].includes(
-        'wrangler pages deploy --cwd cloudflare-pages --project-name jev-mario --branch this-that-local',
+        'wrangler pages deploy --cwd cloudflare-pages --project-name jev-mario --branch main',
       ),
     );
   }

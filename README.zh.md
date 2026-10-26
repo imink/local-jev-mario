@@ -68,6 +68,7 @@ pnpm preview:static
 
 预览地址：**http://127.0.0.1:4180**。取得对应 Cloudflare 授权后，
 `pnpm deploy:pages` 会发布到配置中的 `jev-mario` Pages 项目。
+仓库默认分支和 Pages 生产分支均为 `main`。
 构建仅导出白名单游戏字段和静态资源，不复制密钥、原始日志或快照。
 备用的本地 ROM 导入只在浏览器中读取，不上传。
 
