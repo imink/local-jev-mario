@@ -11,6 +11,7 @@ import {
   sha256,
   validateROM,
 } from '../browser/core.mjs';
+import { messages, translate } from '../browser/i18n.mjs';
 import { MarioEmulator } from '../emulator.mjs';
 import { ACTIONS as nativeActions } from '../policy.mjs';
 import {
@@ -50,16 +51,20 @@ test('hosted ROM fetch is bounded, credential-free and hash checked', async (t) 
   await assert.rejects(loadHostedROM(hash), /Network unavailable/);
 });
 
-test('Load ROM enables Start without starting, and failures disable stale ROM', async (t) => {
+test('language and half-speed controls preserve loaded ROM and replay progress', async (t) => {
   class Element extends EventTarget {
     handlers = new Map();
     textContent = '';
     disabled = true;
+    attributes = {};
     addEventListener(name, handler) {
       this.handlers.set(name, handler);
     }
     getContext() {
       return { putImageData() {} };
+    }
+    setAttribute(name, value) {
+      this.attributes[name] = value;
     }
   }
   const elements = new Map();
@@ -67,6 +72,23 @@ test('Load ROM enables Start without starting, and failures disable stale ROM', 
   document.getElementById = (id) => {
     if (!elements.has(id)) elements.set(id, new Element());
     return elements.get(id);
+  };
+  document.documentElement = { lang: 'zh-CN' };
+  const html = await readFile(
+    new URL('../browser/index.html', import.meta.url),
+    'utf8',
+  );
+  const translatedElements = [
+    ...html.matchAll(/<[^>]+data-i18n="([^"]+)"[^>]*>/g),
+  ].map(([tag, key]) => {
+    const id = tag.match(/id="([^"]+)"/)?.[1];
+    const element = id ? document.getElementById(id) : new Element();
+    element.dataset = { i18n: key };
+    return element;
+  });
+  document.querySelectorAll = (selector) => {
+    assert.equal(selector, '[data-i18n]');
+    return translatedElements;
   };
   const window = new EventTarget();
   window.document = document;
@@ -85,13 +107,47 @@ test('Load ROM enables Start without starting, and failures disable stale ROM', 
       else delete globalThis[key];
     }
   });
-  t.mock.method(globalThis, 'setTimeout', () => 0);
+  const timers = [];
+  t.mock.method(globalThis, 'setTimeout', (callback, delay) => {
+    timers.push({ callback, delay });
+    return timers.length;
+  });
+  t.mock.method(globalThis, 'clearTimeout', () => {});
+  t.mock.method(performance, 'now', () => 0);
   const rom = new Uint8Array(homebrewROM());
+  const native = new MarioEmulator();
+  native.boot(Buffer.from(rom));
+  const events = [0, 1].map((index) => {
+    native.advance('right_run', 16);
+    return {
+      index,
+      automatic: false,
+      action: 'right_run',
+      frames: 16,
+      frame: (index + 1) * 16,
+      player: readPlayer(native.ram),
+      completedLevels: [],
+      history: {
+        inputFrame: index * 16,
+        input: { game: { player: { x: 40 } } },
+        questions: { move: { instructions: 'Move safely.' } },
+        answers: { move: { choice: 'right_run' } },
+        latencyMs: 10,
+      },
+    };
+  });
+  const chunk = JSON.stringify(events);
   const manifest = {
     version: 1,
     totalDecisions: 6275,
     totalFrames: 113645,
-    chunks: [],
+    chunks: [
+      {
+        file: 'events-000.json',
+        events: 2,
+        sha256: await sha256(new TextEncoder().encode(chunk)),
+      },
+    ],
     romSHA256: await sha256(rom),
   };
   let failed = false;
@@ -99,6 +155,7 @@ test('Load ROM enables Start without starting, and failures disable stale ROM', 
   t.mock.method(globalThis, 'fetch', async (url) => {
     requests.push(url);
     if (url === './history/manifest.json') return Response.json(manifest);
+    if (url === './history/events-000.json') return new Response(chunk);
     assert.equal(url, './rom/game.nes');
     return failed
       ? new Response('unavailable', { status: 503 })
@@ -109,21 +166,84 @@ test('Load ROM enables Start without starting, and failures disable stale ROM', 
   assert.deepEqual(requests, ['./history/manifest.json']);
   assert.equal(get('manual').disabled, true);
   assert.equal(get('load-rom').disabled, false);
+  assert.equal(get('manual').textContent, '开始游戏');
   await get('load-rom').handlers.get('click')();
   assert.equal(get('manual').disabled, false);
   assert.equal(get('replay').disabled, false);
   assert.equal(get('toggle').disabled, true);
-  assert.equal(get('state').textContent, '未加载 / Not loaded');
+  assert.equal(get('state').textContent, '未加载');
+  assert(get('message').textContent.includes('ROM 已从 Cloudflare 加载'));
+  const click = (id) => get(id).handlers.get('click')();
+  click('language');
+  assert.equal(document.documentElement.lang, 'en');
+  assert.equal(document.title, 'Jev Mario · Replay & Play');
+  assert.equal(get('manual').textContent, 'Start game');
   assert(get('message').textContent.includes('loaded from Cloudflare'));
+  assert(get('screen').attributes['aria-label'].startsWith('Mario game.'));
+  assert.equal(get('language').attributes['aria-label'], '切换为中文');
+  for (const speed of [4, 16, 0.5, 1, 4, 16, 0.5]) {
+    click('speed');
+    assert.equal(get('speed').textContent, `Replay speed ${speed}×`);
+  }
   await get('manual').handlers.get('click')();
   assert.equal(JSON.parse(get('state').textContent).mode, 'manual');
   assert.equal(JSON.parse(get('state').textContent).frame, 0);
+  await timers.at(-1).callback();
+  assert.equal(JSON.parse(get('state').textContent).frame, 1);
+  assert.equal(timers.at(-1).delay, 1000 / 60);
+  await click('replay');
+  await timers.at(-1).callback();
+  assert.equal(JSON.parse(get('state').textContent).frame, 2);
+  assert.equal(timers.at(-1).delay, (2 * 1000) / (60 * 0.5));
+  click('toggle');
+  const before = ['state', 'input', 'questions', 'answers'].map(
+    (id) => get(id).textContent,
+  );
+  const requestCount = requests.length;
+  click('language');
+  assert.equal(document.documentElement.lang, 'zh-CN');
+  assert.equal(get('speed').textContent, '回放速度 0.5×');
+  assert.equal(get('toggle').textContent, '继续');
+  assert(get('decision').textContent.startsWith('输入帧 0'));
+  assert.deepEqual(
+    ['state', 'input', 'questions', 'answers'].map((id) => get(id).textContent),
+    before,
+  );
+  assert.equal(requests.length, requestCount);
+  assert.equal(get('manual').disabled, false);
+  await click('step');
+  assert.equal(JSON.parse(get('state').textContent).frame, 16);
+  assert.equal(JSON.parse(get('state').textContent).decisions, 1);
+  click('language');
   failed = true;
   await get('load-rom').handlers.get('click')();
   assert.equal(get('manual').disabled, true);
   assert.equal(get('replay').disabled, true);
   assert(get('message').textContent.includes('HTTP 503'));
-  assert.equal(get('state').textContent, '未加载 / Not loaded');
+  assert.equal(get('state').textContent, 'Not loaded');
+  assert(get('message').textContent.startsWith('Stopped:'));
+  click('language');
+  assert(get('message').textContent.startsWith('停止：'));
+  assert(get('message').textContent.includes('HTTP 503'));
+});
+
+test('both UI languages cover every label and preserve interpolation values', async () => {
+  assert.deepEqual(
+    Object.keys(messages.en).sort(),
+    Object.keys(messages['zh-CN']).sort(),
+  );
+  const html = await readFile(
+    new URL('../browser/index.html', import.meta.url),
+    'utf8',
+  );
+  for (const [, key] of html.matchAll(/data-i18n="([^"]+)"/g)) {
+    assert(translate('zh-CN', key));
+    assert(translate('en', key));
+  }
+  assert.equal(translate('en', 'speed', { speed: 0.5 }), 'Replay speed 0.5×');
+  assert.equal(translate('zh-CN', 'speed', { speed: 0.5 }), '回放速度 0.5×');
+  assert.throws(() => translate('fr', 'start'), /Missing UI translation/);
+  assert.throws(() => translate('en', 'speed'), /Missing UI translation value/);
 });
 
 test('static builds require explicit ROM distribution authorization', () => {
@@ -350,9 +470,10 @@ test('static deployment is isolated from Node API, credentials and private resou
     ),
   );
   assert(app.includes('file.arrayBuffer()'));
-  assert(html.includes('<button id="load-rom" disabled>加载 ROM / Load ROM'));
-  assert(html.includes('<button id="manual" disabled>开始游戏 / Start game'));
-  assert(app.includes('ROM loaded from Cloudflare and verified.'));
+  assert(html.includes('<button id="load-rom" data-i18n="loadROM" disabled>'));
+  assert(html.includes('<button id="manual" data-i18n="start" disabled>'));
+  assert(html.includes('<button id="language"'));
+  assert(app.includes("hosted ? 'loadedHosted' : 'loadedLocal'"));
   assert(app.includes('loadHostedROM(manifest?.romSHA256)'));
   assert(html.includes("connect-src 'self'"));
   assert(html.includes("form-action 'none'"));

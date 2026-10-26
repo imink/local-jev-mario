@@ -47,6 +47,7 @@ try {
     'browser/app.mjs': 'browser/app.mjs',
     'browser/assets.mjs': 'browser/assets.mjs',
     'browser/core.mjs': 'browser/core.mjs',
+    'browser/i18n.mjs': 'browser/i18n.mjs',
     'browser/style.css': 'browser/style.css',
     'telemetry.mjs': 'telemetry.mjs',
     'node_modules/jsnes/dist/jsnes.js': 'vendor/jsnes.js',

@@ -1,5 +1,6 @@
 import { boundedBytes, loadHostedROM } from './assets.mjs';
 import { BrowserMario, bindKeyboard, sha256, validateROM } from './core.mjs';
+import { translate } from './i18n.mjs';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('screen');
@@ -19,6 +20,31 @@ let chunk;
 let phase = 'before';
 let verifiedHash = null;
 let replaySpeed = 1;
+const replaySpeeds = [0.5, 1, 4, 16];
+let language = 'zh-CN';
+let message = { key: 'initial', values: {} };
+const t = (key, values) => translate(language, key, values);
+
+function showMessage(key, values = {}) {
+  message = { key, values };
+  $('message').textContent = t(key, values);
+}
+
+function updateLanguage() {
+  document.documentElement.lang = language;
+  document.title = t('title');
+  for (const element of document.querySelectorAll('[data-i18n]'))
+    element.textContent = t(element.dataset.i18n);
+  canvas.setAttribute('aria-label', t('canvas'));
+  $('language').textContent = language === 'zh-CN' ? 'English' : '中文';
+  $('language').lang = language === 'zh-CN' ? 'en' : 'zh-CN';
+  $('language').setAttribute(
+    'aria-label',
+    language === 'zh-CN' ? 'Switch to English' : '切换为中文',
+  );
+  showMessage(message.key, message.values);
+  render();
+}
 
 function controls() {
   $('rom').disabled = busy;
@@ -28,7 +54,8 @@ function controls() {
   $('toggle').disabled = busy || mode === 'idle' || phase === 'complete';
   $('step').disabled =
     busy || playing || mode !== 'replay' || phase === 'complete';
-  $('toggle').textContent = playing ? '暂停 / Pause' : '继续 / Resume';
+  $('toggle').textContent = t(playing ? 'pause' : 'resume');
+  $('speed').textContent = t('speed', { speed: replaySpeed });
 }
 
 function pause() {
@@ -66,11 +93,15 @@ function render() {
       null,
       2,
     );
-  }
+  } else $('state').textContent = t('notLoaded');
   const h = game.history;
   $('decision').textContent = h
-    ? `输入帧 / Input frame ${h.inputFrame} · Choice ${h.answers.move.choice} · ${h.latencyMs} ms`
-    : '无历史决策 / No historical decision';
+    ? t('decision', {
+        frame: h.inputFrame,
+        choice: h.answers.move.choice,
+        latency: h.latencyMs,
+      })
+    : t('noDecision');
   $('input').textContent = h ? JSON.stringify(h.input, null, 2) : '—';
   $('questions').textContent = h ? JSON.stringify(h.questions, null, 2) : '—';
   $('answers').textContent = h ? JSON.stringify(h.answers, null, 2) : '—';
@@ -79,7 +110,7 @@ function render() {
 
 function fail(error) {
   pause();
-  $('message').textContent = `停止 / Stopped: ${error.message}`;
+  showMessage('stopped', { error: error.message });
 }
 
 async function boundedJSON(url, limit, expectedHash) {
@@ -128,8 +159,7 @@ async function advanceDecision(step) {
     verifiedHash = await game.verifyTerminal(manifest);
     phase = 'complete';
     pause();
-    $('message').textContent =
-      '完整回放已核验：6275 动作 / 32 关 / 终态像素一致。Audited victory verified.';
+    showMessage('complete');
   }
 }
 
@@ -185,10 +215,7 @@ async function start(nextMode) {
       const first = await currentEvent();
       game.history = first.history;
     }
-    $('message').textContent =
-      mode === 'replay'
-        ? '回放从 1-1 开始；可暂停读决策。Replay starts at 1-1.'
-        : '点击画面后用方向键、Z/空格跳、X跑。失焦自动暂停。Focus canvas; arrows, Z/Space jump, X run.';
+    showMessage(mode === 'replay' ? 'replayStarted' : 'manualStarted');
     render();
     playing = true;
     timer = setTimeout(tick, mode === 'replay' ? 1200 : 0);
@@ -210,13 +237,10 @@ async function loadROM(hosted) {
   verifiedHash = null;
   game.history = null;
   game.pixels.fill(0);
-  $('state').textContent = '未加载 / Not loaded';
   render();
   busy = true;
   controls();
-  $('message').textContent = hosted
-    ? '正在从 Cloudflare 加载 ROM… / Loading ROM from Cloudflare…'
-    : '正在读取本地 ROM… / Reading local ROM…';
+  showMessage(hosted ? 'loadingHosted' : 'loadingLocal');
   try {
     if (hosted) {
       const loaded = await loadHostedROM(manifest?.romSHA256);
@@ -231,8 +255,7 @@ async function loadROM(hosted) {
       romHash = await sha256(bytes);
       rom = bytes;
     }
-    $('message').textContent =
-      `${hosted ? 'ROM 已从 Cloudflare 加载并核验 / ROM loaded from Cloudflare and verified.' : 'ROM 已从本地加载，不上传 / ROM loaded locally, not uploaded.'} 点击“开始游戏”或“回放” / Click Start game or Replay. SHA-256: ${romHash}`;
+    showMessage(hosted ? 'loadedHosted' : 'loadedLocal', { hash: romHash });
   } catch (error) {
     fail(error);
   } finally {
@@ -244,8 +267,13 @@ $('load-rom').addEventListener('click', () => loadROM(true));
 $('rom').addEventListener('change', () => loadROM(false));
 $('replay').addEventListener('click', () => start('replay'));
 $('speed').addEventListener('click', () => {
-  replaySpeed = replaySpeed === 1 ? 4 : replaySpeed === 4 ? 16 : 1;
-  $('speed').textContent = `回放速度 / Speed ${replaySpeed}×`;
+  replaySpeed =
+    replaySpeeds[(replaySpeeds.indexOf(replaySpeed) + 1) % replaySpeeds.length];
+  controls();
+});
+$('language').addEventListener('click', () => {
+  language = language === 'zh-CN' ? 'en' : 'zh-CN';
+  updateLanguage();
 });
 $('manual').addEventListener('click', () => start('manual'));
 $('toggle').addEventListener('click', () => {
@@ -271,6 +299,7 @@ $('step').addEventListener('click', async () => {
   }
 });
 
+updateLanguage();
 try {
   manifest = await boundedJSON('./history/manifest.json', 65536);
   if (

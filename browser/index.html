@@ -4,37 +4,40 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>Jev Mario · 回放与游玩 / Replay &amp; Play</title>
+  <title>Jev Mario · 回放与游玩</title>
   <link rel="stylesheet" href="./browser/style.css">
   <script src="./vendor/jsnes.js" defer></script>
   <script type="module" src="./browser/app.mjs"></script>
 </head>
 <body>
   <main>
-    <h1>Jev Mario · Replay &amp; Play</h1>
-    <p>6275 个真实 Jev 动作，从 1-1 到 8-4。Recorded decisions, not a live AI service.</p>
-    <p>点击 Load ROM 从 Cloudflare 下载游戏，再点击 Start game。游戏在浏览器运行，不调用实时 AI。Load the hosted ROM, then start; gameplay runs in this tab.</p>
+    <header class="site-header">
+      <h1 data-i18n="title">Jev Mario · 回放与游玩</h1>
+      <button id="language" type="button" lang="en" aria-label="Switch to English">English</button>
+    </header>
+    <p data-i18n="introduction">6275 个真实 Jev 动作，从 1-1 到 8-4。这里展示历史决策，不提供实时 AI 服务。</p>
+    <p data-i18n="instructions">点击“加载 ROM”从 Cloudflare 下载游戏，再点击“开始游戏”。游戏在当前浏览器中运行。</p>
     <div class="controls">
-      <button id="load-rom" disabled>加载 ROM / Load ROM</button>
-      <button id="manual" disabled>开始游戏 / Start game</button>
-      <button id="replay" disabled>回放本局（从 1-1） / Replay</button>
-      <button id="toggle" disabled>继续 / Resume</button>
-      <button id="step" disabled>逐决策 / Next decision</button>
-      <button id="speed">回放速度 / Speed 1×</button>
+      <button id="load-rom" data-i18n="loadROM" disabled>加载 ROM</button>
+      <button id="manual" data-i18n="start" disabled>开始游戏</button>
+      <button id="replay" data-i18n="replay" disabled>回放本局（从 1-1）</button>
+      <button id="toggle" disabled>继续</button>
+      <button id="step" data-i18n="step" disabled>逐决策</button>
+      <button id="speed">回放速度 1×</button>
     </div>
-    <details><summary>备用：导入本地 ROM / Import local ROM instead</summary><label>本地 .nes 文件 / Local .nes file <input id="rom" type="file" accept=".nes"></label><p>仅在浏览器内读取，不上传。Local files are read in this tab and never uploaded.</p></details>
-    <p id="message" role="status" aria-live="polite">先点击“加载 ROM”，再点击“开始游戏”或“回放”。Click Load ROM, then Start game or Replay.</p>
-    <canvas id="screen" width="256" height="240" tabindex="0" aria-label="Mario game. Manual: arrow keys, Z or Space jump, X run, Enter start, right Shift select."></canvas>
-    <p>手动：点击画面，方向键移动，Z/空格跳，X跑；离开或失焦会释放按键并暂停。Manual: focus the canvas. Blur releases all controls and pauses. Audio is disabled.</p>
-    <h2 id="decision">无历史决策 / No historical decision</h2>
-    <p>输入属于动作前；画面显示当前动作/自动过场。只展示保存过的输入与回答，不代表模型内部推理。Absent probability/Score fields were not provided.</p>
-    <pre id="state">未加载 / Not loaded</pre>
-    <details><summary>实际模型输入 / Recorded model input</summary><pre id="input">—</pre></details>
-    <details><summary>实际问题 / Recorded questions</summary><pre id="questions">—</pre></details>
-    <details open><summary>原始回答字段 / Recorded answer fields</summary><pre id="answers">—</pre></details>
-    <details><summary>审计来源、ROM 哈希与限制 / Provenance and hashes</summary><pre id="provenance"></pre></details>
-    <p>3944 原 live 快照丢失后的确定性重建不是原 live 字节对照。原正式局有维护暂停与策略修改，并非无干预实验。结束停在原生胜利触发帧。</p>
-    <footer>JSNES 2.1.0 · <a href="./vendor/JSNES-LICENSE">Apache-2.0 license</a> · 无实时 AI 接口或应用追踪 / No live AI endpoint or app tracking. Cloudflare 托管 / Hosted by Cloudflare.</footer>
+    <details><summary data-i18n="localImport">备用：导入本地 ROM</summary><label><span data-i18n="localFile">本地 .nes 文件</span> <input id="rom" type="file" accept=".nes"></label><p data-i18n="localPrivacy">本地文件仅在当前标签页中读取，不上传。</p></details>
+    <p id="message" role="status" aria-live="polite">先点击“加载 ROM”，再点击“开始游戏”或“回放”。</p>
+    <canvas id="screen" width="256" height="240" tabindex="0" aria-label="马里奥游戏。手动操作：方向键移动，Z 或空格跳，X 跑，Enter 开始，右 Shift 选择。"></canvas>
+    <p data-i18n="manualHelp">手动：点击画面，方向键移动，Z/空格跳，X 跑，Enter 开始，右 Shift 选择。离开、隐藏或失焦时释放按键并暂停。声音已关闭。</p>
+    <h2 id="decision">无历史决策</h2>
+    <p data-i18n="decisionHelp">输入属于动作前；画面显示当前动作或自动过场。只展示保存过的输入与回答，不代表模型内部推理。缺失的概率或 Score 不会补造；原始记录保持原文。</p>
+    <pre id="state">未加载</pre>
+    <details><summary data-i18n="input">实际模型输入</summary><pre id="input">—</pre></details>
+    <details><summary data-i18n="questions">实际问题</summary><pre id="questions">—</pre></details>
+    <details open><summary data-i18n="answers">原始回答字段</summary><pre id="answers">—</pre></details>
+    <details><summary data-i18n="provenance">审计来源、ROM 哈希与限制</summary><pre id="provenance"></pre></details>
+    <p data-i18n="audit">3944 原 live 快照丢失后的确定性重建不是原 live 字节对照。原正式局有维护暂停与策略修改，并非无干预实验。结束停在原生胜利触发帧。</p>
+    <footer>JSNES 2.1.0 · <a href="./vendor/JSNES-LICENSE" data-i18n="license">Apache-2.0 许可证</a> · <span data-i18n="hosting">无实时 AI 接口或应用追踪。由 Cloudflare 托管。</span></footer>
   </main>
 </body>
 </html>

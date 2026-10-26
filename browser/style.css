@@ -12,6 +12,19 @@ main {
   margin: auto;
   padding: 24px;
 }
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.site-header h1 {
+  margin-block: 0.67em;
+}
+#language {
+  margin-inline-start: auto;
+}
 .controls {
   display: flex;
   gap: 10px;

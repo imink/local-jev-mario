@@ -37,7 +37,10 @@ be used for manual play. JSNES uses NTSC timing; sound is disabled.
 
 - Replay starts at 1-1 and includes all **6275 actual Choices and 486 automatic
   transitions**, ending at frame 113645 after all 32 stages. Pause/resume,
-  next-decision, and 1×/4×/16× are available; achievable speed depends on the device.
+  next-decision, and 0.5×/1×/4×/16× are available; achievable speed depends on the device.
+- Use the language button at the top right to switch between Chinese and English.
+  It updates interface labels and status messages without resetting the game,
+  replay position or speed. Original decision records remain untranslated.
 - The actual saved model input, questions, and answer fields are shown, not
   invented internal reasoning. Missing confidence/Score stays missing.
 - Manual mode starts an independent game. Focus the canvas: arrows move,
