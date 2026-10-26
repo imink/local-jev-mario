@@ -229,6 +229,9 @@ test('static deployment is isolated from Node API, credentials and private resou
     ),
   );
   assert(app.includes('file.arrayBuffer()'));
+  assert(html.includes('加载本地 ROM / Load ROM'));
+  assert(html.includes('<button id="manual" disabled>开始游戏 / Start game'));
+  assert(app.includes('ROM loaded locally; click Start game or Replay.'));
   assert(html.includes("connect-src 'self'"));
   assert(html.includes("form-action 'none'"));
   assert(build.includes('Unexpected public build file.'));

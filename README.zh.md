@@ -16,7 +16,9 @@
 必须待 DNS 和证书激活后，才能认为该域名发布完成。
 它不连接本地 Node 游戏，也不公开实时 Jev 接口；GitHub 仓库继续保持 PRIVATE。
 
-访问者必须自行选择合法持有的 `.nes`。`File.arrayBuffer()` 仅把 ROM 读入当前
+点击 **加载本地 ROM / Load ROM**，选择自行合法持有的 `.nes`，
+再点击 **开始游戏 / Start game** 手动游玩，或点击 **回放** 观看正式通关。
+加载有效本地 ROM 前，两项按钮均保持禁用。`File.arrayBuffer()` 仅把 ROM 读入当前
 标签页内存；应用不上传、不调用模型、不使用账户、Cookie、分析追踪或 ROM 下载。
 Cloudflare 会接收正常的站点请求，并可能保留基础设施日志；本地 ROM 不会发送给托管方。
 正式回放要求与来源面板所列 SHA-256 完全相同的 Europe Rev A ROM；

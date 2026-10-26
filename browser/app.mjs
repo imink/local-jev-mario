@@ -239,7 +239,7 @@ $('rom').addEventListener('change', async () => {
     romHash = await sha256(bytes);
     rom = bytes;
     $('message').textContent =
-      `ROM 仅在此浏览器内存 / local browser memory only. SHA-256: ${romHash}`;
+      `ROM 已加载，仅在此浏览器内存。点击“开始游戏”或“回放”。ROM loaded locally; click Start game or Replay. SHA-256: ${romHash}`;
   } catch (error) {
     fail(error);
   } finally {

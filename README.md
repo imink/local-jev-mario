@@ -20,7 +20,9 @@ that hostname is considered deployed.
 It does not connect to the local Node game or expose a live Jev endpoint.
 The private GitHub repository does not need to become public.
 
-Visitors select their own legally obtained `.nes` file. `File.arrayBuffer()`
+Click **Load ROM**, select your own legally obtained `.nes` file, then click
+**Start game** for manual play or **Replay** for the recorded campaign.
+Both controls stay disabled until a valid local ROM is loaded. `File.arrayBuffer()`
 reads it into this tab only: the app has no upload, model request, account,
 cookie, analytics, or ROM download. Cloudflare receives ordinary site requests
 and may retain infrastructure logs; the local ROM is not sent to the host.
