@@ -5,7 +5,7 @@
   "packageManager": "pnpm@9.3.0",
   "engines": { "node": ">=24" },
   "scripts": {
-    "start": "node server.mjs",
+    "start": "node --network-family-autoselection-attempt-timeout=2000 server.mjs",
     "jev": "node local-jev.mjs",
     "model": ".venv/bin/python local_this_that.py",
     "download:model": ".venv/bin/python download_model.py",

@@ -2,14 +2,15 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { Game } from './game.mjs';
 import { integer } from './http.mjs';
+import { decisionConfig } from './official-jev.mjs';
 import { checkJev } from './policy.mjs';
 
 if (!process.env.MARIO_ROM)
   throw new Error(
     'Set MARIO_ROM to your lawfully obtained local SMB1 .nes file. No ROM is bundled.',
   );
-const baseURL = process.env.THIS_THAT_BASE_URL ?? 'http://127.0.0.1:8767';
-const health = await checkJev(baseURL);
+const config = decisionConfig();
+const health = await checkJev(config.baseURL, config);
 const count = integer(
   process.env.SMOKE_DECISIONS ?? 3,
   'SMOKE_DECISIONS',
@@ -17,7 +18,7 @@ const count = integer(
   100,
 );
 const game = new Game({
-  baseURL,
+  ...config,
   framesPerDecision: process.env.FRAMES_PER_DECISION ?? 16,
   maxDecisions: count,
   logDirectory: fileURLToPath(new URL('./midscene_run/logs/', import.meta.url)),
@@ -34,12 +35,15 @@ console.log(
     startX: game.snapshot.player.x,
   }),
 );
-for (let i = 0; i < count; i++) {
+while (game.count < count) {
+  const automatic = game.snapshot.player.automatic;
   await game.step();
   console.log(
     JSON.stringify({
       decision: game.count,
-      action: game.lastDecision.action,
+      automatic,
+      action: automatic ? 'noop' : game.lastDecision.action,
+      campaign: game.snapshot.campaign,
       x: game.snapshot.player.x,
       y: game.snapshot.player.y,
       frame: game.snapshot.episode.frame,

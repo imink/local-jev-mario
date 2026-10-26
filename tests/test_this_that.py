@@ -21,7 +21,7 @@ from local_this_that import (
     prepare,
 )
 
-ACTIONS = ("noop", "right", "right_jump", "right_run", "right_run_jump", "jump", "left")
+ACTIONS = ("noop", "right", "right_jump", "right_run", "right_run_jump", "jump", "left", "down", "left_jump")
 
 
 def request():
@@ -59,8 +59,8 @@ class FakeDecider:
             raise self.failure
         return [
             Decision(q.text, q.options, q.options.index("right_jump"),
-                     tuple(0.7 if item == "right_jump" else 0.05 for item in q.options))
-            if len(q.options) == 7 else Decision(q.text, q.options, 1, (0.2, 0.8))
+                     tuple(0.7 if item == "right_jump" else 0.3 / (len(ACTIONS) - 1) for item in q.options))
+            if tuple(q.options) == ACTIONS else Decision(q.text, q.options, 1, (0.2, 0.8))
             for q in questions
         ]
 

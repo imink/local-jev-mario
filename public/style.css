@@ -61,6 +61,18 @@ summary:focus-visible {
   outline: 3px solid #ffd87d;
   outline-offset: 3px;
 }
+[hidden] {
+  display: none !important;
+}
+input[type="number"] {
+  font: inherit;
+  color: inherit;
+  background: #121824;
+  padding: 8px;
+}
+#replay-notice {
+  font-size: 14px;
+}
 .controls {
   display: flex;
   flex-wrap: wrap;

@@ -18,7 +18,10 @@ function nativeAnswer(action = 'right_run') {
   result.engine = 'this-that';
   result.model = 'flock-io/this-that-model-1.2';
   result.answers.move.probabilities = Object.fromEntries(
-    Object.keys(ACTIONS).map((key) => [key, key === action ? 0.7 : 0.05]),
+    Object.keys(ACTIONS).map((key) => [
+      key,
+      key === action ? 0.7 : 0.3 / (Object.keys(ACTIONS).length - 1),
+    ]),
   );
   result.answers.move.confidence = 0.7;
   return result;
@@ -35,8 +38,10 @@ async function serve(t, handler) {
   return `http://127.0.0.1:${server.address().port}`;
 }
 
-test('exact seven actions and strictly typed answers; no invented confidence', () => {
-  assert.equal(Object.keys(ACTIONS).length, 7);
+test('nine actions include pipe entry and backward jumping, with strictly typed answers', () => {
+  assert.equal(Object.keys(ACTIONS).length, 9);
+  assert.deepEqual(ACTIONS.down, [5]);
+  assert.deepEqual(ACTIONS.left_jump, [6, 0]);
   for (const action of Object.keys(ACTIONS)) {
     const result = parseDecision(answer(action));
     assert.equal(result.action, action);
@@ -103,6 +108,64 @@ test('existing Jev wire format contains structured JSON only', async (t) => {
     'choice is not replaced by a recovery rule',
   );
   assert.ok(decision.latencyMs >= 0);
+});
+
+test('run-jump native requests express both results explicitly without filtering or overriding choices', async (t) => {
+  const snapshot = state();
+  snapshot.navigation.runJumpTargetX = 128;
+  snapshot.forecast = {
+    moves: Object.fromEntries(
+      Object.keys(ACTIONS).map((action) => [
+        action,
+        {
+          next: [
+            action === 'left' ? -16 : 0,
+            208,
+            action === 'left' ? 'grounded' : 'dead',
+          ],
+          held: [0, 208, 'dead'],
+          jumpReadyNext: false,
+          survivesWithOneReplan: false,
+          runJumpLanding: action === 'left',
+        },
+      ]),
+    ),
+  };
+  const url = await serve(t, async (req, res) => {
+    let text = '';
+    for await (const chunk of req) text += chunk;
+    const request = JSON.parse(text);
+    assert.deepEqual(Object.keys(request.state.outcomes), Object.keys(ACTIONS));
+    assert.deepEqual(
+      Object.keys(request.questions.move.criteria),
+      Object.keys(ACTIONS),
+    );
+    assert.equal(
+      request.state.outcomes.left.result,
+      'MEETS the required condition',
+    );
+    assert.equal(
+      request.state.outcomes.right_run.result,
+      'DOES NOT MEET the required condition',
+    );
+    assert.equal(
+      request.questions.move.instructions,
+      'Which action MEETS the required condition according to its verified result?',
+    );
+    assert.equal(request.state.game.player.x, 40);
+    assert.deepEqual(request.state.game.memory, []);
+    res.end(JSON.stringify(nativeAnswer('right_run')));
+  });
+  const decision = await choose(snapshot, {
+    baseURL: url,
+    runId: 'explicit-probe',
+  });
+  assert.equal(decision.action, 'right_run');
+  assert.equal(decision.raw.answers.move.choice, decision.action);
+  assert.equal(
+    decision.modelInput.outcomes.right_run.result,
+    'DOES NOT MEET the required condition',
+  );
 });
 
 test('Gemma request configuration, schema, finish reason and validation', async (t) => {

@@ -97,7 +97,12 @@ export function compactState(state) {
   const progress = episodes.find((episode) => !episode.failureReason);
   return {
     frames: state.reaction_timing.framesPerDecision,
+    campaign: state.campaign,
+    navigation: state.navigation,
     player: {
+      world: player.world,
+      stage: player.stage,
+      area: player.area,
       x: player.x,
       y: player.y,
       height: player.height,
@@ -105,6 +110,7 @@ export function compactState(state) {
       vy: player.verticalSpeed,
       phase: player.jumpPhase,
       canJump: control.jumpReady,
+      swimming: player.swimming,
     },
     control: {
       last: control.action,
@@ -116,6 +122,28 @@ export function compactState(state) {
     terrain: {
       observedX: terrain.observedX,
       solids,
+      ...(terrain.hiddenBlocks?.length
+        ? { hiddenBlocks: terrain.hiddenBlocks.map(({ x, y }) => [x, y]) }
+        : {}),
+      ...(terrain.supportBlocks?.length
+        ? {
+            supportBlocks: terrain.supportBlocks.map((block) => [
+              block.startX,
+              block.endX,
+              block.topY,
+              block.ready,
+            ]),
+          }
+        : {}),
+      ...(terrain.pipeTops?.length
+        ? {
+            pipeTops: terrain.pipeTops.map((pipe) => [
+              pipe.startX,
+              pipe.endX,
+              pipe.topY,
+            ]),
+          }
+        : {}),
       gaps: terrain.possibleGaps.map(interval),
       obstacle: terrain.obstacleAhead
         ? {
