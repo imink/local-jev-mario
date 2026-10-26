@@ -13,15 +13,18 @@ requires an API key.
 
 ## Browser-only Cloudflare site
 
-The separate static edition targets **https://jev-mario.zoink.net** using
-Cloudflare Workers Static Assets. This is a deployment target, not a claim that
-DNS, HTTPS, or account authorization has already been configured.
+The separate static edition is published with Cloudflare Pages at
+**https://jev-mario.pages.dev**. The user-corrected custom-domain target is
+**https://jev-mario.zoink.site**; its DNS and certificate must be active before
+that hostname is considered deployed.
 It does not connect to the local Node game or expose a live Jev endpoint.
 The private GitHub repository does not need to become public.
 
 Visitors select their own legally obtained `.nes` file. `File.arrayBuffer()`
-reads it into this tab only: there is no upload, model request, account, cookie,
-analytics, or ROM download. The recorded campaign requires the exact Europe
+reads it into this tab only: the app has no upload, model request, account,
+cookie, analytics, or ROM download. Cloudflare receives ordinary site requests
+and may retain infrastructure logs; the local ROM is not sent to the host.
+The recorded campaign requires the exact Europe
 Rev A SHA-256 shown in the provenance panel. Other supported SMB1 revisions can
 be used for manual play. JSNES uses NTSC timing; sound is disabled.
 
@@ -61,7 +64,7 @@ total about 31 MB uncompressed; only the current chunk is retained in memory.
 `.cloudflare/site/`; only that directory is deployed. Build output and the
 original local evidence are not committed.
 
-For deployment, first authorize the account that owns `zoink.net`:
+For deployment, first authorize the account that owns `zoink.site`:
 
 ```bash
 ./node_modules/.bin/wrangler login
@@ -70,21 +73,37 @@ For deployment, first authorize the account that owns `zoink.net`:
 
 Alternatively provide `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` through
 the environment, never source control. Authorization must permit this account's
-Worker/static-assets deployment and the zone/custom-domain operations.
-Before publishing, inspect that account's existing `jev-mario` Worker and the
-exact `jev-mario.zoink.net` DNS/custom-domain records. Do not overwrite an
+Pages deployment and custom-domain operations. DNS editing requires separate
+permission; a standard Wrangler OAuth login does not necessarily grant it.
+Before publishing, inspect that account's existing `jev-mario` Pages project and
+the exact `jev-mario.zoink.site` DNS/custom-domain records. Do not overwrite an
 unrelated resource; resolve any conflict with its owner first. Do not change
 the root domain or other subdomains. Then:
 
 ```bash
-WRANGLER_SEND_METRICS=false pnpm deploy:static --dry-run
 WRANGLER_SEND_METRICS=false pnpm deploy:static
 ```
 
-`wrangler.jsonc` names only `jev-mario` and the exact custom domain. Verify both
-the returned Workers preview URL and the custom domain over HTTPS after deploy;
-a local preview/dry-run is not public-deployment proof. No anonymous temporary
-account is used. The preview/deploy scripts explicitly disable Wrangler's
+`cloudflare-pages/wrangler.jsonc` publishes only `.cloudflare/site/` to the
+`jev-mario` Pages project, with `this-that-local` as its production branch.
+`deploy:pages` is an explicit alias for the same deployment. The root
+`wrangler.jsonc` is for local static preview only, with no custom-domain route.
+Pages deploy has no dry-run option; validate the allowlisted build and tests
+before uploading.
+
+Associate `jev-mario.zoink.site` in the project's **Custom domains** settings
+before adding its DNS record. If DNS editing is not authorized for the CLI,
+the zone owner must add exactly this record in the DNS dashboard:
+
+| Type | Name | Target | TTL |
+| --- | --- | --- | --- |
+| CNAME | `jev-mario` | `jev-mario.pages.dev` | Auto |
+
+DNS-only is sufficient. Do not migrate nameservers or change other records.
+Wait for the Pages domain/certificate status to become active, then verify
+both the returned Pages deployment URL and the custom domain over HTTPS.
+A working `pages.dev` URL is not proof of custom-domain activation.
+No anonymous temporary account is used. The preview/deploy scripts explicitly disable Wrangler's
 automatic `.env`/process-environment binding import, so the local Jev key never
 becomes a Worker binding. Do not replace these scripts with an unconfigured
 `wrangler dev` in the repository root.

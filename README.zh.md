@@ -11,12 +11,14 @@
 
 ## 浏览器独立版与 Cloudflare
 
-独立静态版使用 Cloudflare Workers Static Assets，目标域名为
-**https://jev-mario.zoink.net**。这是发布目标，不代表 DNS、HTTPS 或账户授权已完成。
+独立静态版已通过 Cloudflare Pages 发布到 **https://jev-mario.pages.dev**。
+用户更正后的自定义域名为 **https://jev-mario.zoink.site**；
+必须待 DNS 和证书激活后，才能认为该域名发布完成。
 它不连接本地 Node 游戏，也不公开实时 Jev 接口；GitHub 仓库继续保持 PRIVATE。
 
 访问者必须自行选择合法持有的 `.nes`。`File.arrayBuffer()` 仅把 ROM 读入当前
-标签页内存，不上传、不调用模型、不使用账户、Cookie、分析追踪或 ROM 下载。
+标签页内存；应用不上传、不调用模型、不使用账户、Cookie、分析追踪或 ROM 下载。
+Cloudflare 会接收正常的站点请求，并可能保留基础设施日志；本地 ROM 不会发送给托管方。
 正式回放要求与来源面板所列 SHA-256 完全相同的 Europe Rev A ROM；
 其它受支持 SMB1 版本可用于手动游玩。JSNES 使用 NTSC 节拍，声音关闭。
 
@@ -50,7 +52,7 @@ pnpm preview:static
 `scripts/build-static.mjs` 按显式文件清单生成被忽略的 `.cloudflare/site/`，
 仅发布该目录；生成物及本机原始证据不提交到 Git。
 
-发布前，先授权持有 `zoink.net` 的 Cloudflare 账户：
+发布前，先授权持有 `zoink.site` 的 Cloudflare 账户：
 
 ```bash
 ./node_modules/.bin/wrangler login
@@ -58,18 +60,31 @@ pnpm preview:static
 ```
 
 也可通过环境提供 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`，绝不写入
-源码；权限需覆盖本项目 Worker/静态资源发布及区域/自定义域操作。
-发布前检查该账户已有的 `jev-mario` Worker，以及精确的
-`jev-mario.zoink.net` DNS/自定义域记录。若属于其它资源，先与所有者解决冲突，
+源码；权限需覆盖本项目 Pages 发布及自定义域操作。DNS 编辑需要单独授权，
+标准 Wrangler OAuth 登录不一定包含该权限。
+发布前检查该账户已有的 `jev-mario` Pages 项目，以及精确的
+`jev-mario.zoink.site` DNS/自定义域记录。若属于其它资源，先与所有者解决冲突，
 不要覆盖。不要修改根域或其它子域。确认后执行：
 
 ```bash
-WRANGLER_SEND_METRICS=false pnpm deploy:static --dry-run
 WRANGLER_SEND_METRICS=false pnpm deploy:static
 ```
 
-`wrangler.jsonc` 仅声明 `jev-mario` 与指定自定义域。发布后必须通过 HTTPS
-分别验证返回的 Workers 预览 URL 和自定义域；本地预览、dry-run 不等于公网发布。
+`cloudflare-pages/wrangler.jsonc` 只把 `.cloudflare/site/` 发布到 `jev-mario`
+Pages 项目，生产分支为 `this-that-local`。`deploy:pages` 是同一发布操作的别名。
+根目录的 `wrangler.jsonc` 只用于本地静态预览，不包含自定义域路由。
+Pages deploy 没有 dry-run 参数；上传前应验证白名单构建产物与测试。
+
+先在项目的 **Custom domains** 中关联 `jev-mario.zoink.site`，再添加 DNS。
+若 CLI 未获 DNS 编辑权限，由区域所有者在 DNS 控制台仅添加以下记录：
+
+| 类型 | 名称 | 目标 | TTL |
+| --- | --- | --- | --- |
+| CNAME | `jev-mario` | `jev-mario.pages.dev` | 自动 |
+
+DNS-only 即可，不迁移 NS，也不修改其它记录。等待 Pages 自定义域/证书状态
+变为 active 后，通过 HTTPS 分别验证返回的 Pages 部署 URL 与自定义域。
+`pages.dev` 可访问不等于自定义域已激活。
 不使用匿名临时账户。预览/发布脚本显式关闭 Wrangler 自动导入 `.env` 和进程环境
 绑定，避免本机 Jev 密钥成为 Worker binding；不要在仓库根目录直接使用未配置的
 `wrangler dev` 替代这些脚本。

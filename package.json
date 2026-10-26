@@ -13,8 +13,9 @@
     "test": "node --test tests/*.test.mjs",
     "lint": "biome check . --no-errors-on-unmatched",
     "build:static": "node scripts/build-static.mjs",
-    "deploy:static": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false CLOUDFLARE_INCLUDE_PROCESS_ENV=false wrangler deploy",
-    "preview:static": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false CLOUDFLARE_INCLUDE_PROCESS_ENV=false wrangler dev --local --ip 127.0.0.1 --port 4180",
+    "deploy:static": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false CLOUDFLARE_INCLUDE_PROCESS_ENV=false WRANGLER_SEND_METRICS=false wrangler pages deploy --cwd cloudflare-pages --project-name jev-mario --branch this-that-local",
+    "deploy:pages": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false CLOUDFLARE_INCLUDE_PROCESS_ENV=false WRANGLER_SEND_METRICS=false wrangler pages deploy --cwd cloudflare-pages --project-name jev-mario --branch this-that-local",
+    "preview:static": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false CLOUDFLARE_INCLUDE_PROCESS_ENV=false WRANGLER_SEND_METRICS=false wrangler dev --local --ip 127.0.0.1 --port 4180",
     "probe": "node probe.mjs",
     "smoke": "node smoke.mjs"
   },

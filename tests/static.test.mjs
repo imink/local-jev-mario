@@ -188,7 +188,19 @@ test('static deployment is isolated from Node API, credentials and private resou
   const packageJSON = JSON.parse(
     await readFile(new URL('../package.json', import.meta.url), 'utf8'),
   );
-  for (const command of ['deploy:static', 'preview:static']) {
+  const pagesConfig = JSON.parse(
+    await readFile(
+      new URL('../cloudflare-pages/wrangler.jsonc', import.meta.url),
+      'utf8',
+    ),
+  );
+  assert.deepEqual(pagesConfig, {
+    $schema: '../node_modules/wrangler/config-schema.json',
+    name: 'jev-mario',
+    compatibility_date: '2026-10-01',
+    pages_build_output_dir: '../.cloudflare/site',
+  });
+  for (const command of ['deploy:static', 'deploy:pages', 'preview:static']) {
     assert(
       packageJSON.scripts[command].includes(
         'CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false',
@@ -197,6 +209,16 @@ test('static deployment is isolated from Node API, credentials and private resou
     assert(
       packageJSON.scripts[command].includes(
         'CLOUDFLARE_INCLUDE_PROCESS_ENV=false',
+      ),
+    );
+    assert(
+      packageJSON.scripts[command].includes('WRANGLER_SEND_METRICS=false'),
+    );
+  }
+  for (const command of ['deploy:static', 'deploy:pages']) {
+    assert(
+      packageJSON.scripts[command].includes(
+        'wrangler pages deploy --cwd cloudflare-pages --project-name jev-mario --branch this-that-local',
       ),
     );
   }
