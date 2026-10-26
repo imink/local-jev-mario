@@ -242,8 +242,42 @@ test('both UI languages cover every label and preserve interpolation values', as
   }
   assert.equal(translate('en', 'speed', { speed: 0.5 }), 'Replay speed 0.5×');
   assert.equal(translate('zh-CN', 'speed', { speed: 0.5 }), '回放速度 0.5×');
+  assert.equal(translate('zh-CN', 'replay'), '回放全局（从 1-1）');
+  assert.equal(translate('en', 'replay'), 'Replay full campaign');
   assert.throws(() => translate('fr', 'start'), /Missing UI translation/);
   assert.throws(() => translate('en', 'speed'), /Missing UI translation value/);
+});
+
+test('responsive layout separates logs and preserves narrow-screen reading order', async () => {
+  const html = await readFile(
+    new URL('../browser/index.html', import.meta.url),
+    'utf8',
+  );
+  const css = await readFile(
+    new URL('../browser/style.css', import.meta.url),
+    'utf8',
+  );
+  const play = html.match(
+    /<section class="play-panel"[^>]*>([\s\S]*?)<\/section>/,
+  )?.[1];
+  const logs = html.match(
+    /<section class="log-panel"[^>]*>([\s\S]*?)<\/section>/,
+  )?.[1];
+  assert(play?.includes('id="screen"'));
+  assert(play?.includes('id="load-rom"'));
+  for (const id of ['decision', 'state', 'input', 'questions', 'answers'])
+    assert(logs?.includes(`id="${id}"`));
+  assert(!logs.includes('<button'));
+  assert(!logs.includes('id="provenance"'));
+  assert(
+    html.indexOf('class="play-panel"') < html.indexOf('class="log-panel"'),
+  );
+  assert(
+    html.indexOf('class="log-panel"') < html.indexOf('class="about-panel"'),
+  );
+  assert.match(css, /@media \(min-width: 1100px\)/);
+  assert.match(css, /grid-template-areas:\s*"play logs"\s*"about logs"/);
+  assert(!html.includes('回放本局'));
 });
 
 test('static builds require explicit ROM distribution authorization', () => {

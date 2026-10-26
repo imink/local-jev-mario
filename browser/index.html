@@ -11,8 +11,9 @@
 </head>
 <body>
   <main>
+    <section class="play-panel" aria-labelledby="game-title">
     <header class="site-header">
-      <h1 data-i18n="title">Jev Mario · 回放与游玩</h1>
+      <h1 id="game-title" data-i18n="title">Jev Mario · 回放与游玩</h1>
       <button id="language" type="button" lang="en" aria-label="Switch to English">English</button>
     </header>
     <p data-i18n="introduction">6275 个真实 Jev 动作，从 1-1 到 8-4。这里展示历史决策，不提供实时 AI 服务。</p>
@@ -20,7 +21,7 @@
     <div class="controls">
       <button id="load-rom" data-i18n="loadROM" disabled>加载 ROM</button>
       <button id="manual" data-i18n="start" disabled>开始游戏</button>
-      <button id="replay" data-i18n="replay" disabled>回放本局（从 1-1）</button>
+      <button id="replay" data-i18n="replay" disabled>回放全局（从 1-1）</button>
       <button id="toggle" disabled>继续</button>
       <button id="step" data-i18n="step" disabled>逐决策</button>
       <button id="speed">回放速度 1×</button>
@@ -29,15 +30,20 @@
     <p id="message" role="status" aria-live="polite">先点击“加载 ROM”，再点击“开始游戏”或“回放”。</p>
     <canvas id="screen" width="256" height="240" tabindex="0" aria-label="马里奥游戏。手动操作：方向键移动，Z 或空格跳，X 跑，Enter 开始，右 Shift 选择。"></canvas>
     <p data-i18n="manualHelp">手动：点击画面，方向键移动，Z/空格跳，X 跑，Enter 开始，右 Shift 选择。离开、隐藏或失焦时释放按键并暂停。声音已关闭。</p>
+    </section>
+    <section class="log-panel" aria-labelledby="decision">
     <h2 id="decision">无历史决策</h2>
     <p data-i18n="decisionHelp">输入属于动作前；画面显示当前动作或自动过场。只展示保存过的输入与回答，不代表模型内部推理。缺失的概率或 Score 不会补造；原始记录保持原文。</p>
     <pre id="state">未加载</pre>
     <details><summary data-i18n="input">实际模型输入</summary><pre id="input">—</pre></details>
     <details><summary data-i18n="questions">实际问题</summary><pre id="questions">—</pre></details>
     <details open><summary data-i18n="answers">原始回答字段</summary><pre id="answers">—</pre></details>
+    </section>
+    <div class="about-panel">
     <details><summary data-i18n="provenance">审计来源、ROM 哈希与限制</summary><pre id="provenance"></pre></details>
     <p data-i18n="audit">3944 原 live 快照丢失后的确定性重建不是原 live 字节对照。原正式局有维护暂停与策略修改，并非无干预实验。结束停在原生胜利触发帧。</p>
     <footer>JSNES 2.1.0 · <a href="./vendor/JSNES-LICENSE" data-i18n="license">Apache-2.0 许可证</a> · <span data-i18n="hosting">无实时 AI 接口或应用追踪。由 Cloudflare 托管。</span></footer>
+    </div>
   </main>
 </body>
 </html>

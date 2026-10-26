@@ -2,6 +2,16 @@
 
 [中文](./README.zh.md)
 
+**Live site: [jev-mario.zoink.site](https://jev-mario.zoink.site)** ·
+[Source code](https://github.com/imink/local-jev-mario)
+
+Play in your browser: click **Load ROM**, then **Start game** or
+**Replay full campaign**. Replay includes 6275 recorded decisions across all
+32 stages, with pause, next-decision and 0.5×/1×/4×/16× speed controls.
+Switch between English and Chinese at the top right. On wide screens,
+the game and controls appear on the left and decision logs on the right;
+resizing below 1100 CSS pixels restores the single-column mobile layout.
+
 Real NES emulator → SMB1 RAM / structured state → local
 [`flock-io/this-that-model-1.2`](https://huggingface.co/flock-io/this-that-model-1.2)
 → controller. The model scores nine declared actions in one forward pass,
@@ -13,12 +23,12 @@ requires an API key.
 
 ## Browser-only Cloudflare site
 
-The separate static edition is published with Cloudflare Pages at
-**https://jev-mario.pages.dev**. The user-corrected custom-domain target is
-**https://jev-mario.zoink.site**; its DNS and certificate must be active before
-that hostname is considered deployed.
+The separate static edition is live at **https://jev-mario.zoink.site**,
+hosted by Cloudflare Pages. **https://jev-mario.pages.dev** remains available
+as an alternate address.
 It does not connect to the local Node game or expose a live Jev endpoint.
-The private GitHub repository does not need to become public.
+The GitHub repository is public; credentials, ROM files, raw campaign logs,
+model weights and local verification artifacts remain excluded from Git.
 
 Click **Load ROM** to download the hosted game from Cloudflare, then click
 **Start game** for manual play or **Replay** for the recorded campaign.

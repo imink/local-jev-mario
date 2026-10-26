@@ -2,6 +2,15 @@
 
 [English](./README.md)
 
+**在线体验：[jev-mario.zoink.site](https://jev-mario.zoink.site)** ·
+[源代码](https://github.com/imink/local-jev-mario)
+
+在浏览器中点击 **加载 ROM**，再选择 **开始游戏** 或 **回放全局**。
+完整回放包含 32 关的 6275 个历史决策，支持暂停、逐决策和
+0.5×/1×/4×/16× 速度；右上角可切换中文与 English。
+宽屏时游戏和操作区在左侧、决策日志在右侧；将窗口缩至 1100 CSS 像素以下，
+会自动恢复移动端单列布局。
+
 真实 NES 模拟器 → SMB1 RAM / 结构化状态 → 本地
 [`flock-io/this-that-model-1.2`](https://huggingface.co/flock-io/this-that-model-1.2)
 → 手柄。模型一次前向计算为九个动作打分，不生成文本。
@@ -11,10 +20,10 @@
 
 ## 浏览器独立版与 Cloudflare
 
-独立静态版已通过 Cloudflare Pages 发布到 **https://jev-mario.pages.dev**。
-用户更正后的自定义域名为 **https://jev-mario.zoink.site**；
-必须待 DNS 和证书激活后，才能认为该域名发布完成。
-它不连接本地 Node 游戏，也不公开实时 Jev 接口；GitHub 仓库继续保持 PRIVATE。
+独立静态版已通过 Cloudflare Pages 发布到 **https://jev-mario.zoink.site**，
+备用地址为 **https://jev-mario.pages.dev**。
+它不连接本地 Node 游戏，也不公开实时 Jev 接口。GitHub 仓库公开源代码，
+密钥、ROM 文件、原始通关日志、模型权重和本机验证产物仍不提交 Git。
 
 点击 **加载 ROM / Load ROM** 从 Cloudflare 下载游戏，再点击
 **开始游戏 / Start game** 手动游玩，或点击 **回放** 观看正式通关。

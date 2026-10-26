@@ -12,6 +12,33 @@ main {
   margin: auto;
   padding: 24px;
 }
+.play-panel,
+.log-panel,
+.about-panel {
+  min-width: 0;
+}
+@media (min-width: 1100px) {
+  main {
+    display: grid;
+    max-width: 1600px;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "play logs"
+      "about logs";
+    column-gap: 32px;
+    align-items: start;
+  }
+  .play-panel {
+    grid-area: play;
+  }
+  .log-panel {
+    grid-area: logs;
+  }
+  .about-panel {
+    grid-area: about;
+  }
+}
 .site-header {
   display: flex;
   align-items: center;
@@ -37,6 +64,8 @@ select,
 input {
   font: inherit;
   padding: 8px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 button {
   cursor: pointer;
